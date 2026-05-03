@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-public sealed class BloomPuzzleLevel : MonoBehaviour
+[AddComponentMenu("Bloom Rock Puzzle/Bloom Puzzle Level")]
+public class BloomPuzzleLevel : MonoBehaviour
 {
     [Header("Board")]
     [SerializeField] private bool useManualBounds = false;
@@ -15,8 +16,28 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
     [Header("Events")]
     [SerializeField] private UnityEvent onLevelCleared = new UnityEvent();
 
+    [Header("Flow Visuals")]
+    [SerializeField] private bool showFlowVisuals = true;
+    [SerializeField] private float flowVisualSize = 0.82f;
+    [SerializeField] private float flowVisualZ = 0.2f;
+    [SerializeField] private float minimumFlowAlpha = 0.12f;
+    [SerializeField] private Color lightVisualColor = new Color(1f, 0.92f, 0.1f, 0.45f);
+    [SerializeField] private Color waterVisualColor = new Color(0.15f, 0.55f, 1f, 0.38f);
+    [SerializeField] private Color mixedVisualColor = new Color(0.25f, 1f, 0.45f, 0.45f);
+
+    [Header("Clear Visual")]
+    [SerializeField] private bool showClearText = true;
+    [SerializeField] private string clearText = "CLEAR!";
+    [SerializeField] private Vector3 clearTextPosition = new Vector3(0f, 3f, -0.5f);
+    [SerializeField] private Color clearTextColor = new Color(1f, 0.95f, 0.25f, 1f);
+
     private readonly HashSet<Vector2Int> litCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> waterCells = new HashSet<Vector2Int>();
+    private readonly Dictionary<Vector2Int, int> lightDistances = new Dictionary<Vector2Int, int>();
+    private readonly Dictionary<Vector2Int, int> waterDistances = new Dictionary<Vector2Int, int>();
+    private readonly List<GameObject> flowVisuals = new List<GameObject>();
+    private Transform flowVisualRoot;
+    private TextMesh clearTextMesh;
     private bool wasCleared;
 
     private static readonly Vector2Int[] CardinalDirections =
@@ -28,6 +49,12 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
     };
 
     private void Start()
+    {
+        RefreshAll();
+    }
+
+    [ContextMenu("Refresh Puzzle State")]
+    private void RefreshPuzzleStateFromContextMenu()
     {
         RefreshAll();
     }
@@ -52,24 +79,22 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
 
     public void RefreshAll()
     {
-        foreach (GridPiece piece in FindObjectsOfType<GridPiece>())
-        {
-            piece.SnapToGrid();
-        }
-
         RebuildLight();
         RebuildWater();
         RefreshFlowers();
+        RefreshFlowVisuals();
     }
 
     private void RebuildLight()
     {
         litCells.Clear();
+        lightDistances.Clear();
 
         foreach (LightSourceTile source in FindObjectsOfType<LightSourceTile>())
         {
             Vector2Int direction = ToVector(source.Direction);
             Vector2Int cursor = source.GridPosition + direction;
+            int distance = 1;
 
             while (IsInsideBounds(cursor))
             {
@@ -79,7 +104,9 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
                 }
 
                 litCells.Add(cursor);
+                RecordNearestDistance(lightDistances, cursor, distance);
                 cursor += direction;
+                distance++;
             }
         }
     }
@@ -87,21 +114,23 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
     private void RebuildWater()
     {
         waterCells.Clear();
-        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
+        waterDistances.Clear();
+        Queue<FlowNode> frontier = new Queue<FlowNode>();
 
         foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
         {
             waterCells.Add(source.GridPosition);
-            frontier.Enqueue(source.GridPosition);
+            waterDistances[source.GridPosition] = 0;
+            frontier.Enqueue(new FlowNode(source.GridPosition, 0));
         }
 
         while (frontier.Count > 0)
         {
-            Vector2Int current = frontier.Dequeue();
+            FlowNode current = frontier.Dequeue();
 
             foreach (Vector2Int direction in CardinalDirections)
             {
-                Vector2Int next = current + direction;
+                Vector2Int next = current.Position + direction;
 
                 if (!IsInsideBounds(next) || waterCells.Contains(next) || GetRockAt(next) != null)
                 {
@@ -109,7 +138,9 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
                 }
 
                 waterCells.Add(next);
-                frontier.Enqueue(next);
+                int nextDistance = current.Distance + 1;
+                waterDistances[next] = nextDistance;
+                frontier.Enqueue(new FlowNode(next, nextDistance));
             }
         }
     }
@@ -131,11 +162,13 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
         {
             wasCleared = true;
             Debug.Log("Stage clear: all flowers are blooming.");
+            RefreshClearVisual(true);
             onLevelCleared?.Invoke();
         }
         else if (!allBlooming)
         {
             wasCleared = false;
+            RefreshClearVisual(false);
         }
     }
 
@@ -218,6 +251,172 @@ public sealed class BloomPuzzleLevel : MonoBehaviour
                 return Vector2Int.left;
             default:
                 return Vector2Int.right;
+        }
+    }
+
+    private static void RecordNearestDistance(Dictionary<Vector2Int, int> distances, Vector2Int cell, int distance)
+    {
+        if (!distances.TryGetValue(cell, out int currentDistance) || distance < currentDistance)
+        {
+            distances[cell] = distance;
+        }
+    }
+
+    private void RefreshFlowVisuals()
+    {
+        if (!showFlowVisuals)
+        {
+            ClearFlowVisuals();
+            return;
+        }
+
+        EnsureFlowVisualRoot();
+        ClearFlowVisuals();
+
+        HashSet<Vector2Int> visualCells = new HashSet<Vector2Int>(waterCells);
+        visualCells.UnionWith(litCells);
+
+        foreach (Vector2Int cell in visualCells)
+        {
+            bool hasWater = waterCells.Contains(cell);
+            bool hasLight = litCells.Contains(cell);
+            Color color = GetFlowVisualColor(cell, hasWater, hasLight);
+            flowVisuals.Add(CreateFlowVisual(cell, color));
+        }
+    }
+
+    private Color GetFlowVisualColor(Vector2Int cell, bool hasWater, bool hasLight)
+    {
+        if (hasWater && hasLight)
+        {
+            Color color = mixedVisualColor;
+            color.a = Mathf.Max(GetDistanceAlpha(waterDistances, cell, waterVisualColor.a), GetDistanceAlpha(lightDistances, cell, lightVisualColor.a));
+            return color;
+        }
+
+        if (hasWater)
+        {
+            Color color = waterVisualColor;
+            color.a = GetDistanceAlpha(waterDistances, cell, waterVisualColor.a);
+            return color;
+        }
+
+        Color lightColor = lightVisualColor;
+        lightColor.a = GetDistanceAlpha(lightDistances, cell, lightVisualColor.a);
+        return lightColor;
+    }
+
+    private float GetDistanceAlpha(Dictionary<Vector2Int, int> distances, Vector2Int cell, float baseAlpha)
+    {
+        if (!distances.TryGetValue(cell, out int distance))
+        {
+            return baseAlpha;
+        }
+
+        return Mathf.Max(minimumFlowAlpha, baseAlpha / (1f + distance * 0.28f));
+    }
+
+    private void EnsureFlowVisualRoot()
+    {
+        if (flowVisualRoot != null)
+        {
+            return;
+        }
+
+        GameObject root = new GameObject("Flow Visuals");
+        root.transform.SetParent(transform);
+        flowVisualRoot = root.transform;
+    }
+
+    private GameObject CreateFlowVisual(Vector2Int cell, Color color)
+    {
+        GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        visual.name = "Flow Visual";
+        visual.transform.SetParent(flowVisualRoot);
+        visual.transform.position = new Vector3(cell.x + 0.5f, cell.y + 0.5f, flowVisualZ);
+        visual.transform.localScale = Vector3.one * flowVisualSize;
+
+        Collider collider = visual.GetComponent<Collider>();
+        if (collider != null)
+        {
+            Destroy(collider);
+        }
+
+        Renderer renderer = visual.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.material = CreateTransparentMaterial(color);
+        }
+
+        return visual;
+    }
+
+    private void ClearFlowVisuals()
+    {
+        foreach (GameObject visual in flowVisuals)
+        {
+            if (visual != null)
+            {
+                Destroy(visual);
+            }
+        }
+
+        flowVisuals.Clear();
+    }
+
+    private void RefreshClearVisual(bool isClear)
+    {
+        if (!showClearText)
+        {
+            if (clearTextMesh != null)
+            {
+                clearTextMesh.gameObject.SetActive(false);
+            }
+
+            return;
+        }
+
+        EnsureClearText();
+        clearTextMesh.gameObject.SetActive(isClear);
+    }
+
+    private void EnsureClearText()
+    {
+        if (clearTextMesh != null)
+        {
+            return;
+        }
+
+        GameObject textObject = new GameObject("Clear Text");
+        textObject.transform.SetParent(transform);
+        textObject.transform.position = clearTextPosition;
+        clearTextMesh = textObject.AddComponent<TextMesh>();
+        clearTextMesh.text = clearText;
+        clearTextMesh.anchor = TextAnchor.MiddleCenter;
+        clearTextMesh.alignment = TextAlignment.Center;
+        clearTextMesh.characterSize = 0.5f;
+        clearTextMesh.fontSize = 96;
+        clearTextMesh.color = clearTextColor;
+        clearTextMesh.gameObject.SetActive(false);
+    }
+
+    private static Material CreateTransparentMaterial(Color color)
+    {
+        Shader shader = Shader.Find("Sprites/Default");
+        Material material = new Material(shader);
+        material.color = color;
+        return material;
+    }
+
+    private struct FlowNode
+    {
+        public readonly Vector2Int Position;
+        public readonly int Distance;
+
+        public FlowNode(Vector2Int position, int distance)
+        {
+            Position = position;
+            Distance = distance;
         }
     }
 

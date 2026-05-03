@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public sealed class PuzzleCursorController : GridPiece
+[AddComponentMenu("Bloom Rock Puzzle/Puzzle Cursor Controller")]
+public class PuzzleCursorController : GridPiece
 {
     [SerializeField] private BloomPuzzleLevel level;
     [SerializeField] private Color idleColor = new Color(0.65f, 0.9f, 1f, 0.45f);

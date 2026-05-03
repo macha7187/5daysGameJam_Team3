@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public sealed class FlowerTile : GridPiece
+[AddComponentMenu("Bloom Rock Puzzle/Flower Tile")]
+public class FlowerTile : GridPiece
 {
     [SerializeField] private Color dormantColor = new Color(0.6f, 0.25f, 0.55f);
     [SerializeField] private Color bloomingColor = new Color(1f, 0.55f, 0.8f);

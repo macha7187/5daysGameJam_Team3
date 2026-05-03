@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public sealed class LightSourceTile : GridPiece
+[AddComponentMenu("Bloom Rock Puzzle/Light Source Tile")]
+public class LightSourceTile : GridPiece
 {
     [SerializeField] private PuzzleDirection direction = PuzzleDirection.Right;
 
