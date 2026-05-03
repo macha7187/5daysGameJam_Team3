@@ -2,31 +2,37 @@ using UnityEngine;
 
 public abstract class GridPiece : MonoBehaviour
 {
-    [SerializeField] private Vector2Int gridPosition;
+    private Vector3 worldOffset;
+    private bool hasWorldOffset;
 
     public Vector2Int GridPosition
     {
-        get => gridPosition;
+        get
+        {
+            Vector3 position = transform.position;
+            return new Vector2Int(Mathf.FloorToInt(position.x), Mathf.FloorToInt(position.y));
+        }
         set
         {
-            gridPosition = value;
-            transform.position = new Vector3(value.x, value.y, transform.position.z);
+            EnsureWorldOffset();
+            transform.position = new Vector3(value.x + worldOffset.x, value.y + worldOffset.y, transform.position.z);
         }
     }
 
     protected virtual void Awake()
     {
-        SnapToGrid();
+        EnsureWorldOffset();
     }
 
-    protected virtual void OnValidate()
+    private void EnsureWorldOffset()
     {
-        SnapToGrid();
-    }
+        if (hasWorldOffset)
+        {
+            return;
+        }
 
-    public void SnapToGrid()
-    {
-        gridPosition = Vector2Int.RoundToInt(transform.position);
-        transform.position = new Vector3(gridPosition.x, gridPosition.y, transform.position.z);
+        Vector3 position = transform.position;
+        worldOffset = new Vector3(position.x - Mathf.Floor(position.x), position.y - Mathf.Floor(position.y), 0f);
+        hasWorldOffset = true;
     }
 }

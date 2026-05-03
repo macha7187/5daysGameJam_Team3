@@ -1,3 +1,4 @@
-public sealed class WaterSourceTile : GridPiece
+[UnityEngine.AddComponentMenu("Bloom Rock Puzzle/Water Source Tile")]
+public class WaterSourceTile : GridPiece
 {
 }

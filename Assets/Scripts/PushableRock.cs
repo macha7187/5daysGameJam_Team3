@@ -1,3 +1,4 @@
-public sealed class PushableRock : GridPiece
+[UnityEngine.AddComponentMenu("Bloom Rock Puzzle/Pushable Rock")]
+public class PushableRock : GridPiece
 {
 }
