@@ -11,11 +11,13 @@ public class FlowerTile : GridPiece
     public bool IsBlooming { get; private set; }
 
     private Renderer cachedRenderer;
+    private SpriteRenderer cachedSpriteRenderer;
 
     protected override void Awake()
     {
         base.Awake();
         cachedRenderer = GetComponent<Renderer>();
+        cachedSpriteRenderer = GetComponent<SpriteRenderer>();
         RefreshVisual();
     }
 
@@ -34,9 +36,21 @@ public class FlowerTile : GridPiece
             cachedRenderer = GetComponent<Renderer>();
         }
 
+        if (cachedSpriteRenderer == null)
+        {
+            cachedSpriteRenderer = GetComponent<SpriteRenderer>();
+        }
+
+        Color color = IsBlooming ? bloomingColor : dormantColor;
+
         if (cachedRenderer != null)
         {
-            cachedRenderer.material.color = IsBlooming ? bloomingColor : dormantColor;
+            cachedRenderer.material.color = color;
+        }
+
+        if (cachedSpriteRenderer != null)
+        {
+            cachedSpriteRenderer.color = color;
         }
     }
 }
