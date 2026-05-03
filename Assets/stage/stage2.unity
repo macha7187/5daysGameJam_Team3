@@ -167,6 +167,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &123194367
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -264,6 +266,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &382195887
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -458,6 +462,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &451033041
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -652,6 +658,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &514768709
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -916,6 +924,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &613825791
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1013,6 +1023,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &622839606
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1110,6 +1122,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &636081583
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1207,6 +1221,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &650240039
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1592,6 +1608,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &784260085
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1689,6 +1707,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &785878177
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1786,6 +1806,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &843615881
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -1883,6 +1905,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &878717261
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2078,6 +2102,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &993208027
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2267,6 +2293,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &1357150665
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2445,6 +2473,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &1394819884
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2507,8 +2537,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1684633922}
   - component: {fileID: 1684633921}
-  - component: {fileID: 1684633920}
-  - component: {fileID: 1684633919}
+  - component: {fileID: 1684633923}
   m_Layer: 0
   m_Name: frame
   m_TagString: Untagged
@@ -2516,30 +2545,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1684633919
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1684633918}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &1684633920
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1684633918}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!212 &1684633921
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -2626,6 +2631,20 @@ Transform:
   - {fileID: 622839604}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1684633923
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1684633918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 387a53f6e2b24a9ba4d2c7ed64e61697, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!1 &1836564835
 GameObject:
   m_ObjectHideFlags: 0
@@ -2671,6 +2690,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &1836564838
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -3062,6 +3083,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &2024157663
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -3256,6 +3279,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &2113420545
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -3353,6 +3378,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d01ea53efdde0349974d4a375c6128d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  includeSelf: 0
+  includeChildren: 1
 --- !u!212 &2146126448
 SpriteRenderer:
   m_ObjectHideFlags: 0
