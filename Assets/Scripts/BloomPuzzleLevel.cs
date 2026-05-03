@@ -192,12 +192,38 @@ public class BloomPuzzleLevel : MonoBehaviour
             return false;
         }
 
+        // 2. 他の岩（PushableRock）があるか判定
         if (GetRockAt(position) != null)
         {
             return false;
         }
 
+        foreach (FrameTile frame in FindObjectsOfType<FrameTile>())
+        {
+            if (frame.GridPosition == position) return false;
+        }
+
+        // 3. 花（FlowerTile）があるか判定
+        foreach (FlowerTile flower in FindObjectsOfType<FlowerTile>())
+        {
+            if (flower.GridPosition == position) return false;
+        }
+
+        // 4. 光源（LightSourceTile）があるか判定
+        foreach (LightSourceTile light in FindObjectsOfType<LightSourceTile>())
+        {
+            if (light.GridPosition == position) return false;
+        }
+
+        // 5. 水源（WaterSourceTile）があるか判定
+        foreach (WaterSourceTile waterSource in FindObjectsOfType<WaterSourceTile>())
+        {
+            if (waterSource.GridPosition == position) return false;
+        }
+
+        // 全てのチェックを通過すれば移動可能
         return true;
+        
     }
 
     public PushableRock GetRockAt(Vector2Int position)
