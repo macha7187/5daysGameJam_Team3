@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 
 [AddComponentMenu("Bloom Rock Puzzle/Bloom Puzzle Level")]
 public class BloomPuzzleLevel : MonoBehaviour
@@ -64,6 +65,13 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     public bool TryMoveRock(PushableRock rock, Vector2Int direction)
     {
+        if (wasCleared) return false;
+
+        if (rock == null)
+        {
+            return false;
+        }
+
         if (rock == null)
         {
             return false;
@@ -271,7 +279,10 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         return null;
     }
-
+    public void LoadNextScene(string stage2)
+    {
+        SceneManager.LoadScene(stage2);
+    }
     private LightSourceTile GetLightSourceAt(Vector2Int position)
     {
         foreach (LightSourceTile source in FindObjectsOfType<LightSourceTile>())
