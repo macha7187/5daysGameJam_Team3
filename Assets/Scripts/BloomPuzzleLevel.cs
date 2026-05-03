@@ -12,17 +12,20 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     [Header("Rules")]
     [SerializeField] private bool waterNeedsAdjacentFlower = true;
+    [SerializeField] private int waterSpreadRange = 3;
 
     [Header("Events")]
     [SerializeField] private UnityEvent onLevelCleared = new UnityEvent();
 
     [Header("Flow Visuals")]
     [SerializeField] private bool showFlowVisuals = true;
-    [SerializeField] private float flowVisualSize = 0.82f;
+    [SerializeField] private float flowVisualSize = 0.64f;
     [SerializeField] private float flowVisualZ = 0.2f;
-    [SerializeField] private float minimumFlowAlpha = 0.12f;
+    [SerializeField] private float minimumFlowAlpha = 0.04f;
+    [SerializeField] private float waterFadePerCell = 0.65f;
+    [SerializeField] private float lightFadePerCell = 0.2f;
     [SerializeField] private Color lightVisualColor = new Color(1f, 0.92f, 0.1f, 0.45f);
-    [SerializeField] private Color waterVisualColor = new Color(0.15f, 0.55f, 1f, 0.38f);
+    [SerializeField] private Color waterVisualColor = new Color(0.1f, 0.55f, 1f, 0.7f);
     [SerializeField] private Color mixedVisualColor = new Color(0.25f, 1f, 0.45f, 0.45f);
 
     [Header("Clear Visual")]
@@ -98,7 +101,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
             while (IsInsideBounds(cursor))
             {
-                if (GetRockAt(cursor) != null)
+                if (BlocksFlow(cursor))
                 {
                     break;
                 }
@@ -131,14 +134,14 @@ public class BloomPuzzleLevel : MonoBehaviour
             foreach (Vector2Int direction in CardinalDirections)
             {
                 Vector2Int next = current.Position + direction;
+                int nextDistance = current.Distance + 1;
 
-                if (!IsInsideBounds(next) || waterCells.Contains(next) || GetRockAt(next) != null)
+                if (nextDistance > waterSpreadRange || !IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
                 {
                     continue;
                 }
 
                 waterCells.Add(next);
-                int nextDistance = current.Distance + 1;
                 waterDistances[next] = nextDistance;
                 frontier.Enqueue(new FlowNode(next, nextDistance));
             }
@@ -197,7 +200,10 @@ public class BloomPuzzleLevel : MonoBehaviour
             return false;
         }
 
-        return true;
+        return GetWallAt(position) == null
+            && GetFlowerAt(position) == null
+            && GetWaterSourceAt(position) == null
+            && GetLightSourceAt(position) == null;
     }
 
     public PushableRock GetRockAt(Vector2Int position)
@@ -211,6 +217,63 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         return null;
+    }
+
+    public WallTile GetWallAt(Vector2Int position)
+    {
+        foreach (WallTile wall in FindObjectsOfType<WallTile>())
+        {
+            if (wall.GridPosition == position)
+            {
+                return wall;
+            }
+        }
+
+        return null;
+    }
+
+    private FlowerTile GetFlowerAt(Vector2Int position)
+    {
+        foreach (FlowerTile flower in FindObjectsOfType<FlowerTile>())
+        {
+            if (flower.GridPosition == position)
+            {
+                return flower;
+            }
+        }
+
+        return null;
+    }
+
+    private WaterSourceTile GetWaterSourceAt(Vector2Int position)
+    {
+        foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
+        {
+            if (source.GridPosition == position)
+            {
+                return source;
+            }
+        }
+
+        return null;
+    }
+
+    private LightSourceTile GetLightSourceAt(Vector2Int position)
+    {
+        foreach (LightSourceTile source in FindObjectsOfType<LightSourceTile>())
+        {
+            if (source.GridPosition == position)
+            {
+                return source;
+            }
+        }
+
+        return null;
+    }
+
+    private bool BlocksFlow(Vector2Int position)
+    {
+        return GetRockAt(position) != null || GetWallAt(position) != null;
     }
 
     public bool IsInsideBounds(Vector2Int position)
@@ -278,6 +341,11 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         foreach (Vector2Int cell in visualCells)
         {
+            if (BlocksFlow(cell))
+            {
+                continue;
+            }
+
             bool hasWater = waterCells.Contains(cell);
             bool hasLight = litCells.Contains(cell);
             Color color = GetFlowVisualColor(cell, hasWater, hasLight);
@@ -290,30 +358,30 @@ public class BloomPuzzleLevel : MonoBehaviour
         if (hasWater && hasLight)
         {
             Color color = mixedVisualColor;
-            color.a = Mathf.Max(GetDistanceAlpha(waterDistances, cell, waterVisualColor.a), GetDistanceAlpha(lightDistances, cell, lightVisualColor.a));
+            color.a = Mathf.Max(GetDistanceAlpha(waterDistances, cell, waterVisualColor.a, waterFadePerCell), GetDistanceAlpha(lightDistances, cell, lightVisualColor.a, lightFadePerCell));
             return color;
         }
 
         if (hasWater)
         {
             Color color = waterVisualColor;
-            color.a = GetDistanceAlpha(waterDistances, cell, waterVisualColor.a);
+            color.a = GetDistanceAlpha(waterDistances, cell, waterVisualColor.a, waterFadePerCell);
             return color;
         }
 
         Color lightColor = lightVisualColor;
-        lightColor.a = GetDistanceAlpha(lightDistances, cell, lightVisualColor.a);
+        lightColor.a = GetDistanceAlpha(lightDistances, cell, lightVisualColor.a, lightFadePerCell);
         return lightColor;
     }
 
-    private float GetDistanceAlpha(Dictionary<Vector2Int, int> distances, Vector2Int cell, float baseAlpha)
+    private float GetDistanceAlpha(Dictionary<Vector2Int, int> distances, Vector2Int cell, float baseAlpha, float fadePerCell)
     {
         if (!distances.TryGetValue(cell, out int distance))
         {
             return baseAlpha;
         }
 
-        return Mathf.Max(minimumFlowAlpha, baseAlpha / (1f + distance * 0.28f));
+        return Mathf.Max(minimumFlowAlpha, baseAlpha * Mathf.Pow(1f - Mathf.Clamp01(fadePerCell), distance));
     }
 
     private void EnsureFlowVisualRoot()
