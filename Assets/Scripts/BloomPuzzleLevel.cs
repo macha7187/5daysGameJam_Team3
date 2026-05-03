@@ -195,12 +195,14 @@ public class BloomPuzzleLevel : MonoBehaviour
             return false;
         }
 
+        // 2. ëºÇÃä‚ÅiPushableRockÅjÇ™Ç†ÇÈÇ©îªíË
         if (GetRockAt(position) != null)
         {
             return false;
         }
 
         return GetWallAt(position) == null
+            && GetFrameAt(position) == null
             && GetFlowerAt(position) == null
             && GetWaterSourceAt(position) == null
             && GetLightSourceAt(position) == null;
@@ -239,6 +241,18 @@ public class BloomPuzzleLevel : MonoBehaviour
             if (flower.GridPosition == position)
             {
                 return flower;
+            }
+        }
+
+        return null;
+    }
+    private FrameTile GetFrameAt(Vector2Int position)
+    {
+        foreach (FrameTile frame in FindObjectsOfType<FrameTile>())
+        {
+            if (frame.GridPosition == position)
+            {
+                return frame;
             }
         }
 
