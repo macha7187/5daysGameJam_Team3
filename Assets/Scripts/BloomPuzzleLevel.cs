@@ -13,7 +13,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     [Header("Rules")]
     [SerializeField] private bool waterNeedsAdjacentFlower = true;
-    [SerializeField] private int waterSpreadRange = 3;
+    [SerializeField] private int maxWaterCells = 9;
 
     [Header("Events")]
     [SerializeField] private UnityEvent onLevelCleared = new UnityEvent();
@@ -55,6 +55,11 @@ public class BloomPuzzleLevel : MonoBehaviour
     private void Start()
     {
         RefreshAll();
+    }
+
+    private void OnValidate()
+    {
+        maxWaterCells = Mathf.Max(1, maxWaterCells);
     }
 
     [ContextMenu("Refresh Puzzle State")]
@@ -137,13 +142,17 @@ public class BloomPuzzleLevel : MonoBehaviour
             foreach (Vector2Int direction in CardinalDirections)
             {
                 Vector2Int next = current.Position + direction;
-                int nextDistance = current.Distance + 1;
+                if (waterCells.Count >= maxWaterCells)
+                {
+                    return;
+                }
 
-                if (nextDistance > waterSpreadRange || !IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
+                if (!IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
                 {
                     continue;
                 }
 
+                int nextDistance = current.Distance + 1;
                 waterCells.Add(next);
                 waterDistances[next] = nextDistance;
                 frontier.Enqueue(new FlowNode(next, nextDistance));
