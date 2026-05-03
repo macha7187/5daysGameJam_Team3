@@ -1,6 +1,6 @@
 using UnityEngine;
 
 [AddComponentMenu("Bloom Rock Puzzle/Frame Tile")]
-public class FrameTile: GridPiece
+public class FrameTile : WallTile
 {
 }

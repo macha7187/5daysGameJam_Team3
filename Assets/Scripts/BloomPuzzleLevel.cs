@@ -13,7 +13,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     [Header("Rules")]
     [SerializeField] private bool waterNeedsAdjacentFlower = true;
-    [SerializeField] private int waterSpreadRange = 3;
+    [SerializeField] private int maxWaterCells = 9;
 
     [Header("Events")]
     [SerializeField] private UnityEvent onLevelCleared = new UnityEvent();
@@ -57,6 +57,11 @@ public class BloomPuzzleLevel : MonoBehaviour
         RefreshAll();
     }
 
+    private void OnValidate()
+    {
+        maxWaterCells = Mathf.Max(1, maxWaterCells);
+    }
+
     [ContextMenu("Refresh Puzzle State")]
     private void RefreshPuzzleStateFromContextMenu()
     {
@@ -66,11 +71,6 @@ public class BloomPuzzleLevel : MonoBehaviour
     public bool TryMoveRock(PushableRock rock, Vector2Int direction)
     {
         if (wasCleared) return false;
-
-        if (rock == null)
-        {
-            return false;
-        }
 
         if (rock == null)
         {
@@ -142,13 +142,17 @@ public class BloomPuzzleLevel : MonoBehaviour
             foreach (Vector2Int direction in CardinalDirections)
             {
                 Vector2Int next = current.Position + direction;
-                int nextDistance = current.Distance + 1;
+                if (waterCells.Count >= maxWaterCells)
+                {
+                    return;
+                }
 
-                if (nextDistance > waterSpreadRange || !IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
+                if (!IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
                 {
                     continue;
                 }
 
+                int nextDistance = current.Distance + 1;
                 waterCells.Add(next);
                 waterDistances[next] = nextDistance;
                 frontier.Enqueue(new FlowNode(next, nextDistance));
@@ -203,14 +207,13 @@ public class BloomPuzzleLevel : MonoBehaviour
             return false;
         }
 
-        // 2. ëºÇÃä‚ÅiPushableRockÅjÇ™Ç†ÇÈÇ©îªíË
+        // Rocks cannot move onto another rock or a blocking tile.
         if (GetRockAt(position) != null)
         {
             return false;
         }
 
-        return GetWallAt(position) == null
-            && GetFrameAt(position) == null
+        return !IsWallAt(position)
             && GetFlowerAt(position) == null
             && GetWaterSourceAt(position) == null
             && GetLightSourceAt(position) == null;
@@ -233,13 +236,18 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         foreach (WallTile wall in FindObjectsOfType<WallTile>())
         {
-            if (wall.GridPosition == position)
+            if (wall.ContainsCell(position))
             {
                 return wall;
             }
         }
 
         return null;
+    }
+
+    public bool IsWallAt(Vector2Int position)
+    {
+        return GetWallAt(position) != null;
     }
 
     private FlowerTile GetFlowerAt(Vector2Int position)
@@ -254,19 +262,6 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         return null;
     }
-    private FrameTile GetFrameAt(Vector2Int position)
-    {
-        foreach (FrameTile frame in FindObjectsOfType<FrameTile>())
-        {
-            if (frame.GridPosition == position)
-            {
-                return frame;
-            }
-        }
-
-        return null;
-    }
-
     private WaterSourceTile GetWaterSourceAt(Vector2Int position)
     {
         foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
@@ -298,7 +293,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private bool BlocksFlow(Vector2Int position)
     {
-        return GetRockAt(position) != null || GetWallAt(position) != null;
+        return GetRockAt(position) != null || IsWallAt(position);
     }
 
     public bool IsInsideBounds(Vector2Int position)
@@ -321,6 +316,15 @@ public class BloomPuzzleLevel : MonoBehaviour
         {
             min = Vector2Int.Min(min, piece.GridPosition);
             max = Vector2Int.Max(max, piece.GridPosition);
+        }
+
+        foreach (WallTile wall in FindObjectsOfType<WallTile>())
+        {
+            foreach (Vector2Int cell in wall.GetOccupiedCells())
+            {
+                min = Vector2Int.Min(min, cell);
+                max = Vector2Int.Max(max, cell);
+            }
         }
 
         min += new Vector2Int(-1, -1);
