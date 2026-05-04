@@ -3,9 +3,19 @@ using UnityEngine;
 [AddComponentMenu("Bloom Rock Puzzle/Flower Tile")]
 public class FlowerTile : GridPiece
 {
+    private enum LightRequirement
+    {
+        Required,
+        Forbidden,
+        Ignored
+    }
+
     [Header("Sprites")]
     [SerializeField] private Sprite dormantSprite;
     [SerializeField] private Sprite bloomingSprite;
+
+    [Header("Bloom Conditions")]
+    [SerializeField] private LightRequirement lightRequirement = LightRequirement.Required;
 
     [Header("Colors")]
     [SerializeField] private Color dormantColor = new Color(0.6f, 0.25f, 0.55f);
@@ -31,8 +41,21 @@ public class FlowerTile : GridPiece
     {
         IsLit = isLit;
         HasAdjacentWater = hasAdjacentWater;
-        IsBlooming = IsLit && HasAdjacentWater;
+        IsBlooming = HasAdjacentWater && IsLightConditionSatisfied();
         RefreshVisual();
+    }
+
+    private bool IsLightConditionSatisfied()
+    {
+        switch (lightRequirement)
+        {
+            case LightRequirement.Forbidden:
+                return !IsLit;
+            case LightRequirement.Ignored:
+                return true;
+            default:
+                return IsLit;
+        }
     }
 
     private void RefreshVisual()
