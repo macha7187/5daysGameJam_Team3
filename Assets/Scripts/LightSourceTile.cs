@@ -4,6 +4,7 @@ using UnityEngine;
 public class LightSourceTile : GridPiece
 {
     [SerializeField] private PuzzleDirection direction = PuzzleDirection.Right;
+    [SerializeField] private PuzzleDirection spriteForwardDirection = PuzzleDirection.Right;
 
     public PuzzleDirection Direction => direction;
 
@@ -25,7 +26,8 @@ public class LightSourceTile : GridPiece
 
     private void RefreshRotation()
     {
-        transform.rotation = Quaternion.Euler(0f, 0f, GetZRotation(direction));
+        float zRotation = GetZRotation(direction) - GetZRotation(spriteForwardDirection);
+        transform.rotation = Quaternion.Euler(0f, 0f, zRotation);
     }
 
     private static PuzzleDirection GetClockwiseDirection(PuzzleDirection currentDirection)

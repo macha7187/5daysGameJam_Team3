@@ -3,8 +3,14 @@ using UnityEngine;
 [AddComponentMenu("Bloom Rock Puzzle/Flower Tile")]
 public class FlowerTile : GridPiece
 {
+    [Header("Sprites")]
+    [SerializeField] private Sprite dormantSprite;
+    [SerializeField] private Sprite bloomingSprite;
+
+    [Header("Colors")]
     [SerializeField] private Color dormantColor = new Color(0.6f, 0.25f, 0.55f);
     [SerializeField] private Color bloomingColor = new Color(1f, 0.55f, 0.8f);
+    [SerializeField] private bool tintSprite = true;
 
     public bool IsLit { get; private set; }
     public bool HasAdjacentWater { get; private set; }
@@ -42,6 +48,7 @@ public class FlowerTile : GridPiece
         }
 
         Color color = IsBlooming ? bloomingColor : dormantColor;
+        Sprite sprite = IsBlooming ? bloomingSprite : dormantSprite;
 
         if (cachedRenderer != null)
         {
@@ -50,7 +57,12 @@ public class FlowerTile : GridPiece
 
         if (cachedSpriteRenderer != null)
         {
-            cachedSpriteRenderer.color = color;
+            if (sprite != null)
+            {
+                cachedSpriteRenderer.sprite = sprite;
+            }
+
+            cachedSpriteRenderer.color = tintSprite ? color : Color.white;
         }
     }
 }
