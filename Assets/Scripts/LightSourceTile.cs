@@ -1,12 +1,23 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [AddComponentMenu("Bloom Rock Puzzle/Light Source Tile")]
 public class LightSourceTile : GridPiece
 {
-    [SerializeField] private PuzzleDirection direction = PuzzleDirection.Right;
-    [SerializeField] private PuzzleDirection spriteForwardDirection = PuzzleDirection.Right;
+    [Header("Initial Settings")]
+    [FormerlySerializedAs("direction")]
+    [SerializeField] private PuzzleDirection initialDirection = PuzzleDirection.Right;
 
-    public PuzzleDirection Direction => direction;
+    private PuzzleDirection currentDirection;
+
+    public PuzzleDirection Direction => currentDirection;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        currentDirection = initialDirection;
+        RefreshRotation();
+    }
 
     private void Start()
     {
@@ -15,19 +26,19 @@ public class LightSourceTile : GridPiece
 
     private void OnValidate()
     {
+        currentDirection = initialDirection;
         RefreshRotation();
     }
 
     public void RotateClockwise()
     {
-        direction = GetClockwiseDirection(direction);
+        currentDirection = GetClockwiseDirection(currentDirection);
         RefreshRotation();
     }
 
     private void RefreshRotation()
     {
-        float zRotation = GetZRotation(direction) - GetZRotation(spriteForwardDirection);
-        transform.rotation = Quaternion.Euler(0f, 0f, zRotation);
+        transform.rotation = Quaternion.Euler(0f, 0f, GetZRotation(currentDirection));
     }
 
     private static PuzzleDirection GetClockwiseDirection(PuzzleDirection currentDirection)
