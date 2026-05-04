@@ -30,6 +30,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private float lightFadePerCell = 0.2f;
     [SerializeField] private Color lightVisualColor = new Color(1f, 0.92f, 0.1f, 0.45f);
     [SerializeField] private Color waterVisualColor = new Color(0.1f, 0.55f, 1f, 0.7f);
+    [SerializeField] private Color muddyWaterVisualColor = new Color(0.45f, 0.28f, 0.12f, 0.7f);
     [SerializeField] private Color mixedVisualColor = new Color(0.25f, 1f, 0.45f, 0.45f);
 
     [Header("Clear Visual")]
@@ -41,6 +42,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     [Header("Stage Transition")]
     [SerializeField] private bool showNextArrowOnClear = false;
     [SerializeField] private string nextSceneName = "";
+    [SerializeField] private bool autoResolveNextSceneName = true;
+    [SerializeField] private string firstNumberedStageSceneName = "Stage1";
     [SerializeField] private Sprite nextArrowSprite;
     [SerializeField] private Vector2 nextArrowAnchoredPosition = new Vector2(-36f, 0f);
     [SerializeField] private Vector2 nextArrowSize = new Vector2(180f, 120f);
@@ -50,7 +53,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private Color nextArrowColor = new Color(0.62f, 0.55f, 0.82f, 1f);
 
     private readonly HashSet<Vector2Int> litCells = new HashSet<Vector2Int>();
-    private readonly HashSet<Vector2Int> waterCells = new HashSet<Vector2Int>();
+    private readonly Dictionary<Vector2Int, WaterKind> waterCells = new Dictionary<Vector2Int, WaterKind>();
     private readonly Dictionary<Vector2Int, int> lightDistances = new Dictionary<Vector2Int, int>();
     private readonly Dictionary<Vector2Int, int> waterDistances = new Dictionary<Vector2Int, int>();
     private readonly List<GameObject> flowVisuals = new List<GameObject>();
@@ -125,6 +128,24 @@ public class BloomPuzzleLevel : MonoBehaviour
         return true;
     }
 
+    public bool TryRotatePrismAt(Vector2Int position)
+    {
+        if (wasCleared)
+        {
+            return false;
+        }
+
+        PrismTile prism = GetPrismAt(position);
+        if (prism == null)
+        {
+            return false;
+        }
+
+        prism.RotateClockwise();
+        RefreshAll();
+        return true;
+    }
+
     public void RefreshAll()
     {
         RebuildLight();
@@ -138,14 +159,29 @@ public class BloomPuzzleLevel : MonoBehaviour
         litCells.Clear();
         lightDistances.Clear();
 
+        Queue<LightRay> rays = new Queue<LightRay>();
+        HashSet<LightRayKey> visitedRays = new HashSet<LightRayKey>();
+
         foreach (LightSourceTile source in FindObjectsOfType<LightSourceTile>())
         {
             Vector2Int direction = ToVector(source.Direction);
-            Vector2Int cursor = source.GridPosition + direction;
-            int distance = 1;
+            rays.Enqueue(new LightRay(source.GridPosition + direction, direction, 1));
+        }
+
+        while (rays.Count > 0)
+        {
+            LightRay ray = rays.Dequeue();
+            Vector2Int cursor = ray.Position;
+            int distance = ray.Distance;
 
             while (IsInsideBounds(cursor))
             {
+                LightRayKey currentKey = new LightRayKey(cursor, ray.Direction);
+                if (!visitedRays.Add(currentKey))
+                {
+                    break;
+                }
+
                 if (BlocksLight(cursor))
                 {
                     break;
@@ -153,7 +189,16 @@ public class BloomPuzzleLevel : MonoBehaviour
 
                 litCells.Add(cursor);
                 RecordNearestDistance(lightDistances, cursor, distance);
-                cursor += direction;
+
+                PrismTile prism = GetPrismAt(cursor);
+                if (prism != null)
+                {
+                    Vector2Int refractedDirection = ToVector(prism.Direction);
+                    rays.Enqueue(new LightRay(cursor + refractedDirection, refractedDirection, distance + 1));
+                    break;
+                }
+
+                cursor += ray.Direction;
                 distance++;
             }
         }
@@ -167,9 +212,9 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
         {
-            waterCells.Add(source.GridPosition);
+            RecordWater(source.GridPosition, source.WaterKind);
             waterDistances[source.GridPosition] = 0;
-            frontier.Enqueue(new FlowNode(source.GridPosition, 0));
+            frontier.Enqueue(new FlowNode(source.GridPosition, source.WaterKind, 0));
         }
 
         while (frontier.Count > 0)
@@ -184,15 +229,15 @@ public class BloomPuzzleLevel : MonoBehaviour
                     return;
                 }
 
-                if (!IsInsideBounds(next) || waterCells.Contains(next) || BlocksWater(next))
+                if (!IsInsideBounds(next) || waterCells.ContainsKey(next) || BlocksWater(next))
                 {
                     continue;
                 }
 
                 int nextDistance = current.Distance + 1;
-                waterCells.Add(next);
+                RecordWater(next, current.WaterKind);
                 waterDistances[next] = nextDistance;
-                frontier.Enqueue(new FlowNode(next, nextDistance));
+                frontier.Enqueue(new FlowNode(next, current.WaterKind, nextDistance));
             }
         }
     }
@@ -204,9 +249,10 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         foreach (FlowerTile flower in flowers)
         {
-            bool hasWater = waterNeedsAdjacentFlower ? HasAdjacentWater(flower.GridPosition) : waterCells.Contains(flower.GridPosition);
+            bool hasCleanWater = waterNeedsAdjacentFlower ? HasAdjacentWater(flower.GridPosition, WaterKind.Clean) : HasWater(flower.GridPosition, WaterKind.Clean);
+            bool hasMuddyWater = waterNeedsAdjacentFlower ? HasAdjacentWater(flower.GridPosition, WaterKind.Muddy) : HasWater(flower.GridPosition, WaterKind.Muddy);
             bool isLit = litCells.Contains(flower.GridPosition);
-            flower.SetConditions(isLit, hasWater);
+            flower.SetConditions(isLit, hasCleanWater, hasMuddyWater);
             allBlooming &= flower.IsBlooming;
         }
 
@@ -226,17 +272,27 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
     }
 
-    private bool HasAdjacentWater(Vector2Int position)
+    private bool HasAdjacentWater(Vector2Int position, WaterKind waterKind)
     {
         foreach (Vector2Int direction in CardinalDirections)
         {
-            if (waterCells.Contains(position + direction))
+            if (HasWater(position + direction, waterKind))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private bool HasWater(Vector2Int position, WaterKind waterKind)
+    {
+        return waterCells.TryGetValue(position, out WaterKind foundKind) && foundKind == waterKind;
+    }
+
+    private void RecordWater(Vector2Int position, WaterKind waterKind)
+    {
+        waterCells[position] = waterKind;
     }
 
     private bool CanRockMoveTo(Vector2Int position)
@@ -321,7 +377,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     public void LoadConfiguredNextSceneWithScroll()
     {
-        LoadNextSceneWithScroll(nextSceneName);
+        LoadNextSceneWithScroll(ResolveNextSceneName());
     }
     public LightSourceTile GetLightSourceAt(Vector2Int position)
     {
@@ -336,11 +392,25 @@ public class BloomPuzzleLevel : MonoBehaviour
         return null;
     }
 
+    public PrismTile GetPrismAt(Vector2Int position)
+    {
+        foreach (PrismTile prism in FindObjectsOfType<PrismTile>())
+        {
+            if (prism.GridPosition == position)
+            {
+                return prism;
+            }
+        }
+
+        return null;
+    }
+
     private bool BlocksWater(Vector2Int position)
     {
         return GetRockAt(position) != null
             || IsWallAt(position)
             || GetLightSourceAt(position) != null
+            || GetPrismAt(position) != null
             || GetFlowerAt(position) != null;
     }
 
@@ -355,7 +425,8 @@ public class BloomPuzzleLevel : MonoBehaviour
             || IsWallAt(position)
             || GetFlowerAt(position) != null
             || GetWaterSourceAt(position) != null
-            || GetLightSourceAt(position) != null;
+            || GetLightSourceAt(position) != null
+            || GetPrismAt(position) != null;
     }
 
     public bool BlocksCursor(Vector2Int position)
@@ -432,17 +503,17 @@ public class BloomPuzzleLevel : MonoBehaviour
         EnsureFlowVisualRoot();
         ClearFlowVisuals();
 
-        HashSet<Vector2Int> visualCells = new HashSet<Vector2Int>(waterCells);
+        HashSet<Vector2Int> visualCells = new HashSet<Vector2Int>(waterCells.Keys);
         visualCells.UnionWith(litCells);
 
         foreach (Vector2Int cell in visualCells)
         {
-            if ((waterCells.Contains(cell) && BlocksWater(cell)) || (litCells.Contains(cell) && BlocksLight(cell)))
+            if ((waterCells.ContainsKey(cell) && BlocksWater(cell)) || (litCells.Contains(cell) && BlocksLight(cell)))
             {
                 continue;
             }
 
-            bool hasWater = waterCells.Contains(cell);
+            bool hasWater = waterCells.ContainsKey(cell);
             bool hasLight = litCells.Contains(cell);
             Color color = GetFlowVisualColor(cell, hasWater, hasLight);
             flowVisuals.Add(CreateFlowVisual(cell, color));
@@ -460,8 +531,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         if (hasWater)
         {
-            Color color = waterVisualColor;
-            color.a = GetDistanceAlpha(waterDistances, cell, waterVisualColor.a, waterFadePerCell);
+            Color color = waterCells.TryGetValue(cell, out WaterKind waterKind) && waterKind == WaterKind.Muddy ? muddyWaterVisualColor : waterVisualColor;
+            color.a = GetDistanceAlpha(waterDistances, cell, color.a, waterFadePerCell);
             return color;
         }
 
@@ -530,7 +601,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RefreshClearVisual(bool isClear)
     {
-        if (!showClearText)
+        bool showClearTextFallback = isClear && showNextArrowOnClear && string.IsNullOrEmpty(ResolveNextSceneName());
+        if (!showClearText && !showClearTextFallback)
         {
             if (clearTextMesh != null)
             {
@@ -546,7 +618,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RefreshNextArrow(bool isClear)
     {
-        if (!showNextArrowOnClear || string.IsNullOrEmpty(nextSceneName))
+        if (!showNextArrowOnClear || string.IsNullOrEmpty(ResolveNextSceneName()))
         {
             if (nextArrowButton != null)
             {
@@ -558,6 +630,70 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         EnsureNextArrowButton();
         nextArrowButton.gameObject.SetActive(isClear && !isTransitioning);
+    }
+
+    private string ResolveNextSceneName()
+    {
+        if (!string.IsNullOrEmpty(nextSceneName))
+        {
+            return CanLoadScene(nextSceneName) ? nextSceneName : "";
+        }
+
+        if (!autoResolveNextSceneName)
+        {
+            return "";
+        }
+
+        string activeSceneName = SceneManager.GetActiveScene().name;
+        if (activeSceneName == "Tutorial")
+        {
+            return CanLoadScene(firstNumberedStageSceneName) ? firstNumberedStageSceneName : "";
+        }
+
+        string numberedNextSceneName = GetNextNumberedSceneName(activeSceneName);
+        if (!string.IsNullOrEmpty(numberedNextSceneName) && CanLoadScene(numberedNextSceneName))
+        {
+            return numberedNextSceneName;
+        }
+
+        int activeBuildIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextBuildIndex = activeBuildIndex + 1;
+        if (activeBuildIndex >= 0 && nextBuildIndex < SceneManager.sceneCountInBuildSettings)
+        {
+            string nextBuildScenePath = SceneUtility.GetScenePathByBuildIndex(nextBuildIndex);
+            string nextBuildSceneName = System.IO.Path.GetFileNameWithoutExtension(nextBuildScenePath);
+            return CanLoadScene(nextBuildSceneName) ? nextBuildSceneName : "";
+        }
+
+        return "";
+    }
+
+    private static string GetNextNumberedSceneName(string sceneName)
+    {
+        int numberStartIndex = sceneName.Length;
+        while (numberStartIndex > 0 && char.IsDigit(sceneName[numberStartIndex - 1]))
+        {
+            numberStartIndex--;
+        }
+
+        if (numberStartIndex == sceneName.Length)
+        {
+            return "";
+        }
+
+        string prefix = sceneName.Substring(0, numberStartIndex);
+        string numberText = sceneName.Substring(numberStartIndex);
+        if (!int.TryParse(numberText, out int stageNumber))
+        {
+            return "";
+        }
+
+        return prefix + (stageNumber + 1);
+    }
+
+    private static bool CanLoadScene(string sceneName)
+    {
+        return !string.IsNullOrEmpty(sceneName) && Application.CanStreamedLevelBeLoaded(sceneName);
     }
 
     private void EnsureNextArrowButton()
@@ -778,12 +914,40 @@ public class BloomPuzzleLevel : MonoBehaviour
     private struct FlowNode
     {
         public readonly Vector2Int Position;
+        public readonly WaterKind WaterKind;
         public readonly int Distance;
 
-        public FlowNode(Vector2Int position, int distance)
+        public FlowNode(Vector2Int position, WaterKind waterKind, int distance)
         {
             Position = position;
+            WaterKind = waterKind;
             Distance = distance;
+        }
+    }
+
+    private struct LightRay
+    {
+        public readonly Vector2Int Position;
+        public readonly Vector2Int Direction;
+        public readonly int Distance;
+
+        public LightRay(Vector2Int position, Vector2Int direction, int distance)
+        {
+            Position = position;
+            Direction = direction;
+            Distance = distance;
+        }
+    }
+
+    private struct LightRayKey
+    {
+        public readonly Vector2Int Position;
+        public readonly Vector2Int Direction;
+
+        public LightRayKey(Vector2Int position, Vector2Int direction)
+        {
+            Position = position;
+            Direction = direction;
         }
     }
 
@@ -801,8 +965,10 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         Gizmos.color = new Color(0.2f, 0.65f, 1f, 0.35f);
-        foreach (Vector2Int cell in waterCells)
+        foreach (KeyValuePair<Vector2Int, WaterKind> waterCell in waterCells)
         {
+            Vector2Int cell = waterCell.Key;
+            Gizmos.color = waterCell.Value == WaterKind.Muddy ? new Color(0.45f, 0.25f, 0.1f, 0.35f) : new Color(0.2f, 0.65f, 1f, 0.35f);
             Gizmos.DrawCube(new Vector3(cell.x, cell.y, -0.3f), Vector3.one * 0.55f);
         }
     }

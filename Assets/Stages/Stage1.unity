@@ -744,7 +744,9 @@ MonoBehaviour:
   clearTextPosition: {x: 0, y: 3, z: -0.5}
   clearTextColor: {r: 1, g: 0.95, b: 0.25, a: 1}
   showNextArrowOnClear: 1
-  nextSceneName: Stage2
+  nextSceneName: ""
+  autoResolveNextSceneName: 1
+  firstNumberedStageSceneName: Stage1
   nextArrowSprite: {fileID: 0}
   nextArrowAnchoredPosition: {x: -36, y: 0}
   nextArrowSize: {x: 180, y: 120}
