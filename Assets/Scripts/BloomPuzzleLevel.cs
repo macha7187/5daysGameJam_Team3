@@ -88,6 +88,24 @@ public class BloomPuzzleLevel : MonoBehaviour
         return true;
     }
 
+    public bool TryRotateLightSourceAt(Vector2Int position)
+    {
+        if (wasCleared)
+        {
+            return false;
+        }
+
+        LightSourceTile source = GetLightSourceAt(position);
+        if (source == null)
+        {
+            return false;
+        }
+
+        source.RotateClockwise();
+        RefreshAll();
+        return true;
+    }
+
     public void RefreshAll()
     {
         RebuildLight();
@@ -269,7 +287,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         SceneManager.LoadScene(nextSceneName);
     }
-    private LightSourceTile GetLightSourceAt(Vector2Int position)
+    public LightSourceTile GetLightSourceAt(Vector2Int position)
     {
         foreach (LightSourceTile source in FindObjectsOfType<LightSourceTile>())
         {
