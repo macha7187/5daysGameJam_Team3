@@ -6,7 +6,7 @@ public class SceneChange : MonoBehaviour
 {
     public void ChangeScene()
     {
-        SceneManager.LoadScene("Stage");
+        SceneManager.LoadScene("stage/stage");
     }
 
 }
