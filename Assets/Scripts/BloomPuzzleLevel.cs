@@ -1,7 +1,10 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 [AddComponentMenu("Bloom Rock Puzzle/Bloom Puzzle Level")]
 public class BloomPuzzleLevel : MonoBehaviour
@@ -35,6 +38,17 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private Vector3 clearTextPosition = new Vector3(0f, 3f, -0.5f);
     [SerializeField] private Color clearTextColor = new Color(1f, 0.95f, 0.25f, 1f);
 
+    [Header("Stage Transition")]
+    [SerializeField] private bool showNextArrowOnClear = false;
+    [SerializeField] private string nextSceneName = "";
+    [SerializeField] private Sprite nextArrowSprite;
+    [SerializeField] private Vector2 nextArrowAnchoredPosition = new Vector2(-36f, 0f);
+    [SerializeField] private Vector2 nextArrowSize = new Vector2(180f, 120f);
+    [SerializeField] private float transitionScrollDistance = 12f;
+    [SerializeField] private float transitionScrollDuration = 0.8f;
+    [SerializeField] private bool playIncomingScrollTransition = true;
+    [SerializeField] private Color nextArrowColor = new Color(0.62f, 0.55f, 0.82f, 1f);
+
     private readonly HashSet<Vector2Int> litCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> waterCells = new HashSet<Vector2Int>();
     private readonly Dictionary<Vector2Int, int> lightDistances = new Dictionary<Vector2Int, int>();
@@ -42,7 +56,11 @@ public class BloomPuzzleLevel : MonoBehaviour
     private readonly List<GameObject> flowVisuals = new List<GameObject>();
     private Transform flowVisualRoot;
     private TextMesh clearTextMesh;
+    private Button nextArrowButton;
+    private bool isTransitioning;
     private bool wasCleared;
+
+    private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
 
     private static readonly Vector2Int[] CardinalDirections =
     {
@@ -55,6 +73,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     private void Start()
     {
         RefreshAll();
+        StartCoroutine(PlayIncomingScrollTransitionIfNeeded());
     }
 
     private void OnValidate()
@@ -196,12 +215,14 @@ public class BloomPuzzleLevel : MonoBehaviour
             wasCleared = true;
             Debug.Log("Stage clear: all flowers are blooming.");
             RefreshClearVisual(true);
+            RefreshNextArrow(true);
             onLevelCleared?.Invoke();
         }
         else if (!allBlooming)
         {
             wasCleared = false;
             RefreshClearVisual(false);
+            RefreshNextArrow(false);
         }
     }
 
@@ -286,6 +307,21 @@ public class BloomPuzzleLevel : MonoBehaviour
     public void LoadNextScene(string nextSceneName)
     {
         SceneManager.LoadScene(nextSceneName);
+    }
+
+    public void LoadNextSceneWithScroll(string sceneName)
+    {
+        if (isTransitioning)
+        {
+            return;
+        }
+
+        StartCoroutine(ScrollThenLoadScene(sceneName));
+    }
+
+    public void LoadConfiguredNextSceneWithScroll()
+    {
+        LoadNextSceneWithScroll(nextSceneName);
     }
     public LightSourceTile GetLightSourceAt(Vector2Int position)
     {
@@ -505,6 +541,209 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         EnsureClearText();
         clearTextMesh.gameObject.SetActive(isClear);
+    }
+
+    private void RefreshNextArrow(bool isClear)
+    {
+        if (!showNextArrowOnClear || string.IsNullOrEmpty(nextSceneName))
+        {
+            if (nextArrowButton != null)
+            {
+                nextArrowButton.gameObject.SetActive(false);
+            }
+
+            return;
+        }
+
+        EnsureNextArrowButton();
+        nextArrowButton.gameObject.SetActive(isClear && !isTransitioning);
+    }
+
+    private void EnsureNextArrowButton()
+    {
+        if (nextArrowButton != null)
+        {
+            return;
+        }
+
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            GameObject canvasObject = new GameObject("Canvas");
+            canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObject.AddComponent<CanvasScaler>();
+            canvasObject.AddComponent<GraphicRaycaster>();
+        }
+
+        EnsureEventSystem();
+
+        GameObject buttonObject = new GameObject("Next Stage Arrow");
+        buttonObject.transform.SetParent(canvas.transform, false);
+        RectTransform buttonRect = buttonObject.AddComponent<RectTransform>();
+        buttonRect.anchorMin = new Vector2(1f, 0.5f);
+        buttonRect.anchorMax = new Vector2(1f, 0.5f);
+        buttonRect.pivot = new Vector2(1f, 0.5f);
+        buttonRect.anchoredPosition = nextArrowAnchoredPosition;
+        buttonRect.sizeDelta = nextArrowSize;
+
+        Image image = buttonObject.AddComponent<Image>();
+        image.sprite = nextArrowSprite != null ? nextArrowSprite : CreateDefaultNextArrowSprite();
+        image.color = nextArrowColor;
+        image.preserveAspect = true;
+
+        nextArrowButton = buttonObject.AddComponent<Button>();
+        nextArrowButton.targetGraphic = image;
+        nextArrowButton.onClick.AddListener(LoadConfiguredNextSceneWithScroll);
+
+        nextArrowButton.gameObject.SetActive(false);
+    }
+
+    private static Sprite CreateDefaultNextArrowSprite()
+    {
+        const int width = 96;
+        const int height = 48;
+        const int scale = 4;
+        Color clear = Color.clear;
+        Color ink = Color.white;
+        Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Point;
+
+        Color[] pixels = new Color[width * height];
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = clear;
+        }
+
+        void FillRect(int xMin, int yMin, int rectWidth, int rectHeight)
+        {
+            for (int y = yMin; y < yMin + rectHeight; y++)
+            {
+                for (int x = xMin; x < xMin + rectWidth; x++)
+                {
+                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    {
+                        pixels[y * width + x] = ink;
+                    }
+                }
+            }
+        }
+
+        FillRect(0, 12, 64, scale);
+        FillRect(0, 32, 64, scale);
+        FillRect(0, 12, scale, 24);
+        FillRect(16, 20, scale, 8);
+        FillRect(32, 20, scale, 8);
+        FillRect(48, 20, scale, 8);
+
+        for (int i = 0; i < 28; i += scale)
+        {
+            FillRect(64 + i, 12 + i / 2, scale, scale);
+            FillRect(64 + i, 32 - i / 2, scale, scale);
+        }
+
+        FillRect(88, 22, scale, scale);
+        FillRect(88, 26, scale, scale);
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+    private static void EnsureEventSystem()
+    {
+        if (FindObjectOfType<EventSystem>() != null)
+        {
+            return;
+        }
+
+        GameObject eventSystemObject = new GameObject("EventSystem");
+        eventSystemObject.AddComponent<EventSystem>();
+        eventSystemObject.AddComponent<StandaloneInputModule>();
+    }
+
+    private IEnumerator ScrollThenLoadScene(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName))
+        {
+            yield break;
+        }
+
+        isTransitioning = true;
+        if (nextArrowButton != null)
+        {
+            nextArrowButton.gameObject.SetActive(false);
+        }
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            QueueIncomingScrollTransition(sceneName);
+            SceneManager.LoadScene(sceneName);
+            yield break;
+        }
+
+        Vector3 start = mainCamera.transform.position;
+        Vector3 end = start + Vector3.right * transitionScrollDistance;
+        float duration = Mathf.Max(0.01f, transitionScrollDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            mainCamera.transform.position = Vector3.Lerp(start, end, t);
+            yield return null;
+        }
+
+        QueueIncomingScrollTransition(sceneName);
+        SceneManager.LoadScene(sceneName);
+    }
+
+    private IEnumerator PlayIncomingScrollTransitionIfNeeded()
+    {
+        if (!playIncomingScrollTransition || isTransitioning)
+        {
+            yield break;
+        }
+
+        if (PlayerPrefs.GetString(IncomingTransitionSceneKey, "") != SceneManager.GetActiveScene().name)
+        {
+            yield break;
+        }
+
+        PlayerPrefs.DeleteKey(IncomingTransitionSceneKey);
+        PlayerPrefs.Save();
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            yield break;
+        }
+
+        isTransitioning = true;
+        Vector3 end = mainCamera.transform.position;
+        Vector3 start = end - Vector3.right * transitionScrollDistance;
+        float duration = Mathf.Max(0.01f, transitionScrollDuration);
+        float elapsed = 0f;
+
+        mainCamera.transform.position = start;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+            mainCamera.transform.position = Vector3.Lerp(start, end, t);
+            yield return null;
+        }
+
+        mainCamera.transform.position = end;
+        isTransitioning = false;
+    }
+
+    private static void QueueIncomingScrollTransition(string sceneName)
+    {
+        PlayerPrefs.SetString(IncomingTransitionSceneKey, sceneName);
+        PlayerPrefs.Save();
     }
 
     private void EnsureClearText()
