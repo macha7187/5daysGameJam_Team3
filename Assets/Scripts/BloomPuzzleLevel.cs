@@ -274,9 +274,9 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         return null;
     }
-    public void LoadNextScene(string stage2)
+    public void LoadNextScene(string nextSceneName)
     {
-        SceneManager.LoadScene(stage2);
+        SceneManager.LoadScene(nextSceneName);
     }
     private LightSourceTile GetLightSourceAt(Vector2Int position)
     {
