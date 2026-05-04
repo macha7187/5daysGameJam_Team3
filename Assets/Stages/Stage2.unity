@@ -568,6 +568,15 @@ MonoBehaviour:
   clearText: CLEAR!
   clearTextPosition: {x: 0, y: 3, z: -0.5}
   clearTextColor: {r: 1, g: 0.95, b: 0.25, a: 1}
+  showNextArrowOnClear: 0
+  nextSceneName: ""
+  nextArrowSprite: {fileID: 0}
+  nextArrowAnchoredPosition: {x: -36, y: 0}
+  nextArrowSize: {x: 180, y: 120}
+  transitionScrollDistance: 12
+  transitionScrollDuration: 0.8
+  playIncomingScrollTransition: 1
+  nextArrowColor: {r: 0.62, g: 0.55, b: 0.82, a: 1}
 --- !u!4 &521821637
 Transform:
   m_ObjectHideFlags: 0
