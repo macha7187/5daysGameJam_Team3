@@ -328,6 +328,22 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1724972220988875061, guid: 1955fe3b0c76c7643b9a604b195f6490, type: 3}
+      propertyPath: m_Size.x
+      value: 3.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1724972220988875061, guid: 1955fe3b0c76c7643b9a604b195f6490, type: 3}
+      propertyPath: m_Size.y
+      value: 4.14
+      objectReference: {fileID: 0}
+    - target: {fileID: 1724972220988875061, guid: 1955fe3b0c76c7643b9a604b195f6490, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 4c33f2dabd894d24491ad49e78857846, type: 3}
+    - target: {fileID: 1724972220988875061, guid: 1955fe3b0c76c7643b9a604b195f6490, type: 3}
+      propertyPath: m_WasSpriteAssigned
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4925818682597280664, guid: 1955fe3b0c76c7643b9a604b195f6490, type: 3}
       propertyPath: m_Name
       value: "\u5CA9 (2)"
