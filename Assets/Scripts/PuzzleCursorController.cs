@@ -86,7 +86,7 @@ public class PuzzleCursorController : GridPiece
         }
 
         Vector2Int target = GridPosition + direction;
-        if (!level.IsInsideBounds(target) || level.IsWallAt(target))
+        if (!level.IsInsideBounds(target) || level.BlocksCursor(target))
         {
             return;
         }
