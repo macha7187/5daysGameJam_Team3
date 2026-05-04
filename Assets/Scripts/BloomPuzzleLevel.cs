@@ -109,7 +109,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
             while (IsInsideBounds(cursor))
             {
-                if (BlocksFlow(cursor))
+                if (BlocksLight(cursor))
                 {
                     break;
                 }
@@ -147,7 +147,7 @@ public class BloomPuzzleLevel : MonoBehaviour
                     return;
                 }
 
-                if (!IsInsideBounds(next) || waterCells.Contains(next) || BlocksFlow(next))
+                if (!IsInsideBounds(next) || waterCells.Contains(next) || BlocksWater(next))
                 {
                     continue;
                 }
@@ -207,16 +207,7 @@ public class BloomPuzzleLevel : MonoBehaviour
             return false;
         }
 
-        // Rocks cannot move onto another rock or a blocking tile.
-        if (GetRockAt(position) != null)
-        {
-            return false;
-        }
-
-        return !IsWallAt(position)
-            && GetFlowerAt(position) == null
-            && GetWaterSourceAt(position) == null
-            && GetLightSourceAt(position) == null;
+        return !BlocksRock(position);
     }
 
     public PushableRock GetRockAt(Vector2Int position)
@@ -291,9 +282,30 @@ public class BloomPuzzleLevel : MonoBehaviour
         return null;
     }
 
-    private bool BlocksFlow(Vector2Int position)
+    private bool BlocksWater(Vector2Int position)
+    {
+        return GetRockAt(position) != null
+            || IsWallAt(position)
+            || GetFlowerAt(position) != null;
+    }
+
+    private bool BlocksLight(Vector2Int position)
     {
         return GetRockAt(position) != null || IsWallAt(position);
+    }
+
+    private bool BlocksRock(Vector2Int position)
+    {
+        return GetRockAt(position) != null
+            || IsWallAt(position)
+            || GetFlowerAt(position) != null
+            || GetWaterSourceAt(position) != null
+            || GetLightSourceAt(position) != null;
+    }
+
+    public bool BlocksCursor(Vector2Int position)
+    {
+        return IsWallAt(position);
     }
 
     public bool IsInsideBounds(Vector2Int position)
@@ -370,7 +382,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         foreach (Vector2Int cell in visualCells)
         {
-            if (BlocksFlow(cell))
+            if ((waterCells.Contains(cell) && BlocksWater(cell)) || (litCells.Contains(cell) && BlocksLight(cell)))
             {
                 continue;
             }
