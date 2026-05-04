@@ -340,6 +340,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         return GetRockAt(position) != null
             || IsWallAt(position)
+            || GetLightSourceAt(position) != null
             || GetFlowerAt(position) != null;
     }
 
