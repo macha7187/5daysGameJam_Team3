@@ -42,6 +42,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     [Header("Stage Transition")]
     [SerializeField] private bool showNextArrowOnClear = false;
     [SerializeField] private string nextSceneName = "";
+    [SerializeField] private bool autoResolveNextSceneName = true;
+    [SerializeField] private string firstNumberedStageSceneName = "Stage1";
     [SerializeField] private Sprite nextArrowSprite;
     [SerializeField] private Vector2 nextArrowAnchoredPosition = new Vector2(-36f, 0f);
     [SerializeField] private Vector2 nextArrowSize = new Vector2(180f, 120f);
@@ -375,7 +377,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     public void LoadConfiguredNextSceneWithScroll()
     {
-        LoadNextSceneWithScroll(nextSceneName);
+        LoadNextSceneWithScroll(ResolveNextSceneName());
     }
     public LightSourceTile GetLightSourceAt(Vector2Int position)
     {
@@ -599,7 +601,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RefreshClearVisual(bool isClear)
     {
-        if (!showClearText)
+        bool showClearTextFallback = isClear && showNextArrowOnClear && string.IsNullOrEmpty(ResolveNextSceneName());
+        if (!showClearText && !showClearTextFallback)
         {
             if (clearTextMesh != null)
             {
@@ -615,7 +618,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RefreshNextArrow(bool isClear)
     {
-        if (!showNextArrowOnClear || string.IsNullOrEmpty(nextSceneName))
+        if (!showNextArrowOnClear || string.IsNullOrEmpty(ResolveNextSceneName()))
         {
             if (nextArrowButton != null)
             {
@@ -627,6 +630,70 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         EnsureNextArrowButton();
         nextArrowButton.gameObject.SetActive(isClear && !isTransitioning);
+    }
+
+    private string ResolveNextSceneName()
+    {
+        if (!string.IsNullOrEmpty(nextSceneName))
+        {
+            return CanLoadScene(nextSceneName) ? nextSceneName : "";
+        }
+
+        if (!autoResolveNextSceneName)
+        {
+            return "";
+        }
+
+        string activeSceneName = SceneManager.GetActiveScene().name;
+        if (activeSceneName == "Tutorial")
+        {
+            return CanLoadScene(firstNumberedStageSceneName) ? firstNumberedStageSceneName : "";
+        }
+
+        string numberedNextSceneName = GetNextNumberedSceneName(activeSceneName);
+        if (!string.IsNullOrEmpty(numberedNextSceneName) && CanLoadScene(numberedNextSceneName))
+        {
+            return numberedNextSceneName;
+        }
+
+        int activeBuildIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextBuildIndex = activeBuildIndex + 1;
+        if (activeBuildIndex >= 0 && nextBuildIndex < SceneManager.sceneCountInBuildSettings)
+        {
+            string nextBuildScenePath = SceneUtility.GetScenePathByBuildIndex(nextBuildIndex);
+            string nextBuildSceneName = System.IO.Path.GetFileNameWithoutExtension(nextBuildScenePath);
+            return CanLoadScene(nextBuildSceneName) ? nextBuildSceneName : "";
+        }
+
+        return "";
+    }
+
+    private static string GetNextNumberedSceneName(string sceneName)
+    {
+        int numberStartIndex = sceneName.Length;
+        while (numberStartIndex > 0 && char.IsDigit(sceneName[numberStartIndex - 1]))
+        {
+            numberStartIndex--;
+        }
+
+        if (numberStartIndex == sceneName.Length)
+        {
+            return "";
+        }
+
+        string prefix = sceneName.Substring(0, numberStartIndex);
+        string numberText = sceneName.Substring(numberStartIndex);
+        if (!int.TryParse(numberText, out int stageNumber))
+        {
+            return "";
+        }
+
+        return prefix + (stageNumber + 1);
+    }
+
+    private static bool CanLoadScene(string sceneName)
+    {
+        return !string.IsNullOrEmpty(sceneName) && Application.CanStreamedLevelBeLoaded(sceneName);
     }
 
     private void EnsureNextArrowButton()

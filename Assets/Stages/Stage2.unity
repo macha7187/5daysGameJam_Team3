@@ -489,12 +489,14 @@ MonoBehaviour:
   lightVisualColor: {r: 1, g: 0.92, b: 0.1, a: 0.45}
   waterVisualColor: {r: 0.15, g: 0.55, b: 1, a: 0.38}
   mixedVisualColor: {r: 0.25, g: 1, b: 0.45, a: 0.45}
-  showClearText: 1
+  showClearText: 0
   clearText: CLEAR!
   clearTextPosition: {x: 0, y: 3, z: -0.5}
   clearTextColor: {r: 1, g: 0.95, b: 0.25, a: 1}
-  showNextArrowOnClear: 0
-  nextSceneName: 
+  showNextArrowOnClear: 1
+  nextSceneName: ""
+  autoResolveNextSceneName: 1
+  firstNumberedStageSceneName: Stage1
   nextArrowSprite: {fileID: 0}
   nextArrowAnchoredPosition: {x: -36, y: 0}
   nextArrowSize: {x: 180, y: 120}
