@@ -26,12 +26,36 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private float flowVisualSize = 0.64f;
     [SerializeField] private float flowVisualZ = 0.2f;
     [SerializeField] private float minimumFlowAlpha = 0.04f;
-    [SerializeField] private float waterFadePerCell = 0.65f;
-    [SerializeField] private float lightFadePerCell = 0.2f;
     [SerializeField] private Color lightVisualColor = new Color(1f, 0.92f, 0.1f, 0.45f);
     [SerializeField] private Color waterVisualColor = new Color(0.1f, 0.55f, 1f, 0.7f);
     [SerializeField] private Color muddyWaterVisualColor = new Color(0.45f, 0.28f, 0.12f, 0.7f);
     [SerializeField] private Color mixedVisualColor = new Color(0.25f, 1f, 0.45f, 0.45f);
+    [SerializeField] private Sprite waterFlowSprite;
+    [SerializeField] private Sprite muddyWaterFlowSprite;
+    [SerializeField] private Sprite liquidBodySprite;
+    [SerializeField] private Sprite lightBeamSprite;
+    [SerializeField] private int flowVisualSortingOrder = 10;
+    [SerializeField] private int liquidBodySortingOffset = -1;
+    [SerializeField] private float spriteMinimumAlpha = 0.28f;
+    [SerializeField] private float waterSpriteAlphaMultiplier = 2.1f;
+    [SerializeField] private float lightSpriteAlphaMultiplier = 1.8f;
+    [SerializeField] private bool useAdditiveLightBlend = true;
+    [SerializeField] private float additiveLightStrength = 1.35f;
+    [SerializeField] private float waterSpriteFadePerCell = 0.18f;
+    [SerializeField] private float lightSpriteFadePerCell = 0.05f;
+    [SerializeField] private float liquidBodyAlphaMultiplier = 0.72f;
+    [SerializeField] private float liquidBodySize = 0.88f;
+    [SerializeField] private float liquidConnectorWidth = 0.52f;
+    [SerializeField] private float liquidConnectorLength = 1.08f;
+    [SerializeField] private float waterStreamWidth = 0.44f;
+    [SerializeField] private float waterStreamLength = 1.02f;
+    [SerializeField] private float muddyWaterVisualSize = 0.72f;
+    [SerializeField] private float lightBeamWidth = 0.34f;
+    [SerializeField] private float waterMotionDistance = 0.28f;
+    [SerializeField] private float waterMotionSpeed = 1.8f;
+    [SerializeField] private float muddyWaterMotionSpeed = 0.75f;
+    [SerializeField] private float lightPulseSpeed = 2.4f;
+    [SerializeField] private float lightBeamLength = 0.92f;
 
     [Header("Clear Visual")]
     [SerializeField] private bool showClearText = true;
@@ -64,6 +88,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     private readonly Dictionary<Vector2Int, WaterKind> waterCells = new Dictionary<Vector2Int, WaterKind>();
     private readonly Dictionary<Vector2Int, int> lightDistances = new Dictionary<Vector2Int, int>();
     private readonly Dictionary<Vector2Int, int> waterDistances = new Dictionary<Vector2Int, int>();
+    private readonly Dictionary<Vector2Int, Vector2Int> waterDirections = new Dictionary<Vector2Int, Vector2Int>();
+    private readonly Dictionary<Vector2Int, Vector2Int> lightDirections = new Dictionary<Vector2Int, Vector2Int>();
     private readonly List<GameObject> flowVisuals = new List<GameObject>();
     private Transform flowVisualRoot;
     private TextMesh clearTextMesh;
@@ -73,6 +99,11 @@ public class BloomPuzzleLevel : MonoBehaviour
     private bool isTransitioning;
     private bool wasCleared;
     private bool hasBuiltWaterOnce;
+    private Sprite defaultWaterFlowSprite;
+    private Sprite defaultMuddyWaterFlowSprite;
+    private Sprite defaultLiquidBodySprite;
+    private Sprite defaultLightBeamSprite;
+    private Material additiveLightMaterial;
 
     private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
 
@@ -93,6 +124,26 @@ public class BloomPuzzleLevel : MonoBehaviour
     private void OnValidate()
     {
         maxWaterCells = Mathf.Max(1, maxWaterCells);
+        spriteMinimumAlpha = Mathf.Clamp01(spriteMinimumAlpha);
+        waterSpriteAlphaMultiplier = Mathf.Max(0f, waterSpriteAlphaMultiplier);
+        lightSpriteAlphaMultiplier = Mathf.Max(0f, lightSpriteAlphaMultiplier);
+        additiveLightStrength = Mathf.Max(0f, additiveLightStrength);
+        liquidBodyAlphaMultiplier = Mathf.Max(0f, liquidBodyAlphaMultiplier);
+        liquidBodySize = Mathf.Max(0.01f, liquidBodySize);
+        liquidConnectorWidth = Mathf.Max(0.01f, liquidConnectorWidth);
+        liquidConnectorLength = Mathf.Max(0.01f, liquidConnectorLength);
+        waterStreamWidth = Mathf.Max(0.01f, waterStreamWidth);
+        waterStreamLength = Mathf.Max(0.01f, waterStreamLength);
+        muddyWaterVisualSize = Mathf.Max(0.01f, muddyWaterVisualSize);
+        lightBeamWidth = Mathf.Max(0.01f, lightBeamWidth);
+    }
+
+    private void OnDestroy()
+    {
+        if (additiveLightMaterial != null)
+        {
+            Destroy(additiveLightMaterial);
+        }
     }
 
     [ContextMenu("Refresh Puzzle State")]
@@ -169,6 +220,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         litCells.Clear();
         lightDistances.Clear();
+        lightDirections.Clear();
 
         Queue<LightRay> rays = new Queue<LightRay>();
         HashSet<LightRayKey> visitedRays = new HashSet<LightRayKey>();
@@ -200,6 +252,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
                 litCells.Add(cursor);
                 RecordNearestDistance(lightDistances, cursor, distance);
+                RecordNearestDirection(lightDirections, lightDistances, cursor, ray.Direction, distance);
 
                 PrismTile prism = GetPrismAt(cursor);
                 if (prism != null)
@@ -221,6 +274,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         waterCells.Clear();
         waterDistances.Clear();
+        waterDirections.Clear();
         foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
         {
             Queue<FlowNode> frontier = new Queue<FlowNode>();
@@ -228,6 +282,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
             RecordWater(source.GridPosition, source.WaterKind);
             waterDistances[source.GridPosition] = 0;
+            waterDirections[source.GridPosition] = Vector2Int.zero;
             sourceWaterCells.Add(source.GridPosition);
             frontier.Enqueue(new FlowNode(source.GridPosition, source.WaterKind, 0));
 
@@ -251,8 +306,12 @@ public class BloomPuzzleLevel : MonoBehaviour
 
                     int nextDistance = current.Distance + 1;
                     sourceWaterCells.Add(next);
-                    RecordWater(next, current.WaterKind);
+                    bool recordedWater = RecordWater(next, current.WaterKind);
                     RecordNearestDistance(waterDistances, next, nextDistance);
+                    if (recordedWater || !waterDirections.ContainsKey(next))
+                    {
+                        RecordNearestDirection(waterDirections, waterDistances, next, direction, nextDistance);
+                    }
                     frontier.Enqueue(new FlowNode(next, current.WaterKind, nextDistance));
                 }
             }
@@ -342,14 +401,15 @@ public class BloomPuzzleLevel : MonoBehaviour
         return waterCells.TryGetValue(position, out WaterKind foundKind) && foundKind == waterKind;
     }
 
-    private void RecordWater(Vector2Int position, WaterKind waterKind)
+    private bool RecordWater(Vector2Int position, WaterKind waterKind)
     {
         if (waterCells.TryGetValue(position, out WaterKind currentKind) && currentKind == WaterKind.Muddy)
         {
-            return;
+            return false;
         }
 
         waterCells[position] = waterKind;
+        return true;
     }
 
     private bool CanRockMoveTo(Vector2Int position)
@@ -549,6 +609,14 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
     }
 
+    private static void RecordNearestDirection(Dictionary<Vector2Int, Vector2Int> directions, Dictionary<Vector2Int, int> distances, Vector2Int cell, Vector2Int direction, int distance)
+    {
+        if (!distances.TryGetValue(cell, out int currentDistance) || distance <= currentDistance || !directions.ContainsKey(cell))
+        {
+            directions[cell] = direction;
+        }
+    }
+
     private void RefreshFlowVisuals()
     {
         if (!showFlowVisuals)
@@ -572,30 +640,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
             bool hasWater = waterCells.ContainsKey(cell);
             bool hasLight = litCells.Contains(cell);
-            Color color = GetFlowVisualColor(cell, hasWater, hasLight);
-            flowVisuals.Add(CreateFlowVisual(cell, color));
+            flowVisuals.Add(CreateFlowVisual(cell, hasWater, hasLight));
         }
-    }
-
-    private Color GetFlowVisualColor(Vector2Int cell, bool hasWater, bool hasLight)
-    {
-        if (hasWater && hasLight)
-        {
-            Color color = mixedVisualColor;
-            color.a = Mathf.Max(GetDistanceAlpha(waterDistances, cell, waterVisualColor.a, waterFadePerCell), GetDistanceAlpha(lightDistances, cell, lightVisualColor.a, lightFadePerCell));
-            return color;
-        }
-
-        if (hasWater)
-        {
-            Color color = waterCells.TryGetValue(cell, out WaterKind waterKind) && waterKind == WaterKind.Muddy ? muddyWaterVisualColor : waterVisualColor;
-            color.a = GetDistanceAlpha(waterDistances, cell, color.a, waterFadePerCell);
-            return color;
-        }
-
-        Color lightColor = lightVisualColor;
-        lightColor.a = GetDistanceAlpha(lightDistances, cell, lightVisualColor.a, lightFadePerCell);
-        return lightColor;
     }
 
     private float GetDistanceAlpha(Dictionary<Vector2Int, int> distances, Vector2Int cell, float baseAlpha, float fadePerCell)
@@ -606,6 +652,12 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         return Mathf.Max(minimumFlowAlpha, baseAlpha * Mathf.Pow(1f - Mathf.Clamp01(fadePerCell), distance));
+    }
+
+    private float GetSpriteAlpha(Dictionary<Vector2Int, int> distances, Vector2Int cell, float baseAlpha, float fadePerCell, float multiplier)
+    {
+        float alpha = GetDistanceAlpha(distances, cell, baseAlpha, fadePerCell) * multiplier;
+        return Mathf.Clamp(alpha, spriteMinimumAlpha, 1f);
     }
 
     private void EnsureFlowVisualRoot()
@@ -620,27 +672,365 @@ public class BloomPuzzleLevel : MonoBehaviour
         flowVisualRoot = root.transform;
     }
 
-    private GameObject CreateFlowVisual(Vector2Int cell, Color color)
+    private GameObject CreateFlowVisual(Vector2Int cell, bool hasWater, bool hasLight)
     {
-        GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        visual.name = "Flow Visual";
+        GameObject visual = new GameObject("Flow Visual");
         visual.transform.SetParent(flowVisualRoot);
         visual.transform.position = new Vector3(cell.x + 0.5f, cell.y + 0.5f, flowVisualZ);
-        visual.transform.localScale = Vector3.one * flowVisualSize;
 
-        Collider collider = visual.GetComponent<Collider>();
-        if (collider != null)
+        if (hasLight)
         {
-            Destroy(collider);
+            CreateLightVisual(visual.transform, cell, hasWater);
         }
 
-        Renderer renderer = visual.GetComponent<Renderer>();
-        if (renderer != null)
+        if (hasWater)
         {
-            renderer.material = CreateTransparentMaterial(color);
+            CreateWaterVisual(visual.transform, cell, hasLight);
         }
 
         return visual;
+    }
+
+    private void CreateWaterVisual(Transform parent, Vector2Int cell, bool isMixedWithLight)
+    {
+        WaterKind waterKind = waterCells.TryGetValue(cell, out WaterKind foundKind) ? foundKind : WaterKind.Clean;
+        Color color = waterKind == WaterKind.Muddy ? muddyWaterVisualColor : waterVisualColor;
+        color.a = GetSpriteAlpha(waterDistances, cell, color.a, waterSpriteFadePerCell, waterSpriteAlphaMultiplier);
+        if (isMixedWithLight)
+        {
+            float alpha = color.a;
+            color = Color.Lerp(color, mixedVisualColor, 0.25f);
+            color.a = alpha;
+        }
+
+        Vector2Int direction = waterDirections.TryGetValue(cell, out Vector2Int foundDirection) ? foundDirection : Vector2Int.zero;
+        float phase = GetCellPhase(cell);
+        float speed = waterKind == WaterKind.Muddy ? muddyWaterMotionSpeed : waterMotionSpeed;
+        Sprite sprite = waterKind == WaterKind.Muddy ? GetMuddyWaterSprite() : GetWaterSprite();
+        float visualScale = GetFlowVisualScale();
+        float width = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamWidth) * visualScale;
+        float height = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamLength) * visualScale;
+
+        CreateLiquidBodyVisual(parent, cell, waterKind, color, visualScale);
+
+        GameObject water = CreateSpriteVisual("Water Flow", parent, sprite, color, width, height, direction);
+        FlowVisualAnimator animator = water.AddComponent<FlowVisualAnimator>();
+        animator.Configure(water.GetComponent<SpriteRenderer>(), color, (Vector2)direction * waterMotionDistance, speed, waterKind == WaterKind.Muddy ? 0.04f : 0.08f, phase);
+    }
+
+    private void CreateLiquidBodyVisual(Transform parent, Vector2Int cell, WaterKind waterKind, Color flowColor, float visualScale)
+    {
+        Color bodyColor = flowColor;
+        bodyColor.a = Mathf.Clamp01(flowColor.a * liquidBodyAlphaMultiplier);
+
+        float bodySize = liquidBodySize * visualScale;
+        GameObject body = CreateSpriteVisual("Liquid Body", parent, GetLiquidBodySprite(), bodyColor, bodySize, bodySize, Vector2Int.zero);
+        SpriteRenderer bodyRenderer = body.GetComponent<SpriteRenderer>();
+        bodyRenderer.sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+
+        foreach (Vector2Int direction in CardinalDirections)
+        {
+            Vector2Int neighbor = cell + direction;
+            if (!waterCells.TryGetValue(neighbor, out WaterKind neighborKind) || neighborKind != waterKind)
+            {
+                continue;
+            }
+
+            if (direction == Vector2Int.left || direction == Vector2Int.down)
+            {
+                continue;
+            }
+
+            GameObject connector = CreateSpriteVisual("Liquid Connector", parent, GetLiquidBodySprite(), bodyColor, liquidConnectorWidth * visualScale, liquidConnectorLength * visualScale, direction);
+            connector.transform.localPosition = (Vector3)((Vector2)direction * 0.5f);
+            connector.GetComponent<SpriteRenderer>().sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+        }
+    }
+
+    private void CreateLightVisual(Transform parent, Vector2Int cell, bool isMixedWithWater)
+    {
+        Color color = isMixedWithWater ? Color.Lerp(lightVisualColor, mixedVisualColor, 0.35f) : lightVisualColor;
+        color.a = GetSpriteAlpha(lightDistances, cell, lightVisualColor.a, lightSpriteFadePerCell, lightSpriteAlphaMultiplier);
+        if (useAdditiveLightBlend)
+        {
+            color.r *= additiveLightStrength;
+            color.g *= additiveLightStrength;
+            color.b *= additiveLightStrength;
+        }
+
+        Vector2Int direction = lightDirections.TryGetValue(cell, out Vector2Int foundDirection) ? foundDirection : Vector2Int.right;
+        float visualScale = GetFlowVisualScale();
+        GameObject light = CreateSpriteVisual("Light Beam", parent, GetLightBeamSprite(), color, lightBeamWidth * visualScale, lightBeamLength * visualScale, direction);
+        ApplyLightMaterial(light.GetComponent<SpriteRenderer>());
+        FlowVisualAnimator animator = light.AddComponent<FlowVisualAnimator>();
+        animator.Configure(light.GetComponent<SpriteRenderer>(), color, Vector2.zero, lightPulseSpeed, 0.12f, GetCellPhase(cell));
+    }
+
+    private float GetFlowVisualScale()
+    {
+        return Mathf.Max(0.01f, flowVisualSize / 0.64f);
+    }
+
+    private GameObject CreateSpriteVisual(string visualName, Transform parent, Sprite sprite, Color color, float width, float height, Vector2Int direction)
+    {
+        GameObject visual = new GameObject(visualName);
+        visual.transform.SetParent(parent);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.Euler(0f, 0f, GetDirectionAngle(direction));
+
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.color = color;
+        renderer.sortingOrder = flowVisualSortingOrder;
+
+        Vector2 spriteSize = sprite != null ? sprite.bounds.size : Vector2.one;
+        float scaleX = spriteSize.x > 0f ? width / spriteSize.x : width;
+        float scaleY = spriteSize.y > 0f ? height / spriteSize.y : height;
+        visual.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+        return visual;
+    }
+
+    private void ApplyLightMaterial(SpriteRenderer renderer)
+    {
+        if (!useAdditiveLightBlend || renderer == null)
+        {
+            return;
+        }
+
+        Material material = GetAdditiveLightMaterial();
+        if (material != null)
+        {
+            renderer.sharedMaterial = material;
+        }
+    }
+
+    private Material GetAdditiveLightMaterial()
+    {
+        if (additiveLightMaterial != null)
+        {
+            return additiveLightMaterial;
+        }
+
+        Shader shader = Shader.Find("Bloom Rock Puzzle/Additive Sprite");
+        if (shader == null)
+        {
+            shader = Shader.Find("Legacy Shaders/Particles/Additive");
+        }
+
+        if (shader == null)
+        {
+            shader = Shader.Find("Particles/Additive");
+        }
+
+        if (shader == null)
+        {
+            Debug.LogWarning("Additive light shader was not found. Light beams will use the default sprite material.");
+            return null;
+        }
+
+        additiveLightMaterial = new Material(shader)
+        {
+            name = "Generated Additive Light Material"
+        };
+        additiveLightMaterial.hideFlags = HideFlags.HideAndDontSave;
+        return additiveLightMaterial;
+    }
+
+    private Sprite GetWaterSprite()
+    {
+        if (waterFlowSprite != null)
+        {
+            return waterFlowSprite;
+        }
+
+        if (defaultWaterFlowSprite == null)
+        {
+            defaultWaterFlowSprite = CreateDefaultWaterFlowSprite();
+        }
+
+        return defaultWaterFlowSprite;
+    }
+
+    private Sprite GetMuddyWaterSprite()
+    {
+        if (muddyWaterFlowSprite != null)
+        {
+            return muddyWaterFlowSprite;
+        }
+
+        if (defaultMuddyWaterFlowSprite == null)
+        {
+            defaultMuddyWaterFlowSprite = CreateDefaultMuddyWaterFlowSprite();
+        }
+
+        return defaultMuddyWaterFlowSprite;
+    }
+
+    private Sprite GetLiquidBodySprite()
+    {
+        if (liquidBodySprite != null)
+        {
+            return liquidBodySprite;
+        }
+
+        if (defaultLiquidBodySprite == null)
+        {
+            defaultLiquidBodySprite = CreateDefaultLiquidBodySprite();
+        }
+
+        return defaultLiquidBodySprite;
+    }
+
+    private Sprite GetLightBeamSprite()
+    {
+        if (lightBeamSprite != null)
+        {
+            return lightBeamSprite;
+        }
+
+        if (defaultLightBeamSprite == null)
+        {
+            defaultLightBeamSprite = CreateDefaultLightBeamSprite();
+        }
+
+        return defaultLightBeamSprite;
+    }
+
+    private static float GetDirectionAngle(Vector2Int direction)
+    {
+        if (direction == Vector2Int.zero)
+        {
+            return 0f;
+        }
+
+        return Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
+    }
+
+    private static float GetCellPhase(Vector2Int cell)
+    {
+        int hash = cell.x * 73856093 ^ cell.y * 19349663;
+        return Mathf.Abs(hash % 1000) / 1000f;
+    }
+
+    private static Sprite CreateDefaultWaterFlowSprite()
+    {
+        const int size = 64;
+        Texture2D texture = CreateTransparentTexture(size, size);
+        Color[] pixels = texture.GetPixels();
+
+        for (int y = 0; y < size; y++)
+        {
+            float vertical = y / (float)(size - 1);
+            float centerX = 32f + Mathf.Sin(vertical * Mathf.PI * 2f) * 6f;
+            DrawSoftLine(pixels, size, centerX, y, 3.5f, 0.8f);
+            DrawSoftLine(pixels, size, centerX - 13f, y, 2f, 0.45f);
+            DrawSoftLine(pixels, size, centerX + 14f, y, 2f, 0.35f);
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+    }
+
+    private static Sprite CreateDefaultMuddyWaterFlowSprite()
+    {
+        const int size = 64;
+        Texture2D texture = CreateTransparentTexture(size, size);
+        Color[] pixels = texture.GetPixels();
+
+        DrawSoftBlob(pixels, size, new Vector2(32f, 32f), 24f, 0.65f);
+        DrawSoftBlob(pixels, size, new Vector2(20f, 40f), 10f, 0.35f);
+        DrawSoftBlob(pixels, size, new Vector2(45f, 24f), 12f, 0.4f);
+        DrawSoftBlob(pixels, size, new Vector2(28f, 18f), 7f, 0.3f);
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+    }
+
+    private static Sprite CreateDefaultLiquidBodySprite()
+    {
+        const int size = 64;
+        Texture2D texture = CreateTransparentTexture(size, size);
+        Color[] pixels = texture.GetPixels();
+
+        DrawSoftBlob(pixels, size, new Vector2(32f, 32f), 28f, 0.82f);
+        DrawSoftBlob(pixels, size, new Vector2(22f, 41f), 17f, 0.35f);
+        DrawSoftBlob(pixels, size, new Vector2(44f, 23f), 16f, 0.28f);
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+    }
+
+    private static Sprite CreateDefaultLightBeamSprite()
+    {
+        const int width = 24;
+        const int height = 96;
+        Texture2D texture = CreateTransparentTexture(width, height);
+        Color[] pixels = texture.GetPixels();
+
+        for (int y = 0; y < height; y++)
+        {
+            float lengthFade = Mathf.Sin((y / (float)(height - 1)) * Mathf.PI);
+            for (int x = 0; x < width; x++)
+            {
+                float centerDistance = Mathf.Abs(x - (width - 1) * 0.5f) / ((width - 1) * 0.5f);
+                float alpha = Mathf.Pow(1f - Mathf.Clamp01(centerDistance), 1.7f) * lengthFade;
+                pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), height);
+    }
+
+    private static Texture2D CreateTransparentTexture(int width, int height)
+    {
+        Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Bilinear;
+        Color[] pixels = new Color[width * height];
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = Color.clear;
+        }
+
+        texture.SetPixels(pixels);
+        return texture;
+    }
+
+    private static void DrawSoftLine(Color[] pixels, int size, float centerX, int y, float radius, float alpha)
+    {
+        int xMin = Mathf.Max(0, Mathf.FloorToInt(centerX - radius * 2f));
+        int xMax = Mathf.Min(size - 1, Mathf.CeilToInt(centerX + radius * 2f));
+
+        for (int x = xMin; x <= xMax; x++)
+        {
+            float distance = Mathf.Abs(x - centerX);
+            float lineAlpha = Mathf.Clamp01(1f - distance / radius) * alpha;
+            int index = y * size + x;
+            pixels[index] = new Color(1f, 1f, 1f, Mathf.Max(pixels[index].a, lineAlpha));
+        }
+    }
+
+    private static void DrawSoftBlob(Color[] pixels, int size, Vector2 center, float radius, float alpha)
+    {
+        int xMin = Mathf.Max(0, Mathf.FloorToInt(center.x - radius));
+        int xMax = Mathf.Min(size - 1, Mathf.CeilToInt(center.x + radius));
+        int yMin = Mathf.Max(0, Mathf.FloorToInt(center.y - radius));
+        int yMax = Mathf.Min(size - 1, Mathf.CeilToInt(center.y + radius));
+
+        for (int y = yMin; y <= yMax; y++)
+        {
+            for (int x = xMin; x <= xMax; x++)
+            {
+                float distance = Vector2.Distance(new Vector2(x, y), center);
+                float blobAlpha = Mathf.Clamp01(1f - distance / radius) * alpha;
+                int index = y * size + x;
+                pixels[index] = new Color(1f, 1f, 1f, Mathf.Max(pixels[index].a, blobAlpha));
+            }
+        }
     }
 
     private void ClearFlowVisuals()
@@ -1077,14 +1467,6 @@ public class BloomPuzzleLevel : MonoBehaviour
         clearTextMesh.fontSize = 96;
         clearTextMesh.color = clearTextColor;
         clearTextMesh.gameObject.SetActive(false);
-    }
-
-    private static Material CreateTransparentMaterial(Color color)
-    {
-        Shader shader = Shader.Find("Sprites/Default");
-        Material material = new Material(shader);
-        material.color = color;
-        return material;
     }
 
     private struct FlowNode
