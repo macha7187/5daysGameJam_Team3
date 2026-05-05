@@ -73,9 +73,9 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.6431373, g: 0.5882353, b: 0.5882353, a: 1}
+  m_SortingOrder: 10
+  m_Sprite: {fileID: 21300000, guid: 0dcba3fad3e033846b113424c445b734, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -97,6 +97,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 07d6c81909f1462db9ad5dfec9c137d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  idleSprite: {fileID: 21300000, guid: 0dcba3fad3e033846b113424c445b734, type: 3}
+  grabbingSprite: {fileID: 21300000, guid: 2b4e388bdba410c459a235163f7677c7, type: 3}
+  idleScale: {x: 0.8, y: 0.8, z: 1}
+  grabbingScale: {x: 0.32, y: 0.32, z: 1}
   level: {fileID: 0}
-  idleColor: {r: 0.65, g: 0.9, b: 1, a: 0.45}
-  grabbingColor: {r: 1, g: 0.35, b: 0.3, a: 0.75}
+  idleColor: {r: 1, g: 1, b: 1, a: 0.45}
+  grabbingColor: {r: 1, g: 1, b: 1, a: 0.75}
