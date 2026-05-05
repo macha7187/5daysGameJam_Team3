@@ -97,5 +97,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5dbb2c45eba428b98de6de3355533c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  direction: 3
-  spriteForwardDirection: 3
+  initialDirection: 3
