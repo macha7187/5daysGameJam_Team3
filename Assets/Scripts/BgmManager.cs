@@ -98,6 +98,11 @@ public sealed class BgmManager : MonoBehaviour
             return;
         }
 
+        if (IsClearScene(sceneName))
+        {
+            return;
+        }
+
         Stop();
     }
 
@@ -113,6 +118,11 @@ public sealed class BgmManager : MonoBehaviour
         return sceneName.Length > StageScenePrefix.Length
             && sceneName.StartsWith(StageScenePrefix)
             && int.TryParse(sceneName.Substring(StageScenePrefix.Length), out _);
+    }
+
+    private static bool IsClearScene(string sceneName)
+    {
+        return sceneName == "Clear Scene" || sceneName == "ClearScene";
     }
 
     private AudioClip GetRandomStageClip()
