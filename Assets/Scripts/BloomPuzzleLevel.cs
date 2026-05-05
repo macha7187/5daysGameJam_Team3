@@ -70,6 +70,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private string nextSceneName = "";
     [SerializeField] private bool autoResolveNextSceneName = true;
     [SerializeField] private string firstNumberedStageSceneName = "Stage1";
+    [SerializeField] private string clearSceneName = "Clear Scene";
     [SerializeField] private Sprite nextArrowSprite;
     [SerializeField] private Vector2 nextArrowAnchoredPosition = new Vector2(-36f, 0f);
     [SerializeField] private Vector2 nextArrowSize = new Vector2(180f, 120f);
@@ -1237,10 +1238,15 @@ public class BloomPuzzleLevel : MonoBehaviour
             return CanLoadScene(firstNumberedStageSceneName) ? firstNumberedStageSceneName : "";
         }
 
-        string numberedNextSceneName = GetNextNumberedSceneName(activeSceneName);
+        string numberedNextSceneName = GetNextNumberedStageSceneName(activeSceneName);
         if (!string.IsNullOrEmpty(numberedNextSceneName) && CanLoadScene(numberedNextSceneName))
         {
             return numberedNextSceneName;
+        }
+
+        if (IsFinalNumberedStageScene(activeSceneName))
+        {
+            return CanLoadScene(clearSceneName) ? clearSceneName : "";
         }
 
         int activeBuildIndex = SceneManager.GetActiveScene().buildIndex;
@@ -1255,8 +1261,46 @@ public class BloomPuzzleLevel : MonoBehaviour
         return "";
     }
 
-    private static string GetNextNumberedSceneName(string sceneName)
+    private string GetNextNumberedStageSceneName(string sceneName)
     {
+        if (!TryParseNumberedSceneName(sceneName, out string prefix, out int stageNumber)
+            || !TryParseNumberedSceneName(firstNumberedStageSceneName, out string stagePrefix, out _)
+            || prefix != stagePrefix)
+        {
+            return "";
+        }
+
+        int nextStageNumber = int.MaxValue;
+        string nextStageSceneName = "";
+        for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+        {
+            string buildScenePath = SceneUtility.GetScenePathByBuildIndex(i);
+            string buildSceneName = System.IO.Path.GetFileNameWithoutExtension(buildScenePath);
+            if (TryParseNumberedSceneName(buildSceneName, out string buildPrefix, out int buildStageNumber)
+                && buildPrefix == prefix
+                && buildStageNumber > stageNumber
+                && buildStageNumber < nextStageNumber)
+            {
+                nextStageNumber = buildStageNumber;
+                nextStageSceneName = buildSceneName;
+            }
+        }
+
+        return nextStageSceneName;
+    }
+
+    private bool IsFinalNumberedStageScene(string sceneName)
+    {
+        return TryParseNumberedSceneName(sceneName, out string prefix, out _)
+            && TryParseNumberedSceneName(firstNumberedStageSceneName, out string stagePrefix, out _)
+            && prefix == stagePrefix
+            && CanLoadScene(clearSceneName);
+    }
+
+    private static bool TryParseNumberedSceneName(string sceneName, out string prefix, out int stageNumber)
+    {
+        prefix = "";
+        stageNumber = 0;
         int numberStartIndex = sceneName.Length;
         while (numberStartIndex > 0 && char.IsDigit(sceneName[numberStartIndex - 1]))
         {
@@ -1265,17 +1309,12 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         if (numberStartIndex == sceneName.Length)
         {
-            return "";
+            return false;
         }
 
-        string prefix = sceneName.Substring(0, numberStartIndex);
+        prefix = sceneName.Substring(0, numberStartIndex);
         string numberText = sceneName.Substring(numberStartIndex);
-        if (!int.TryParse(numberText, out int stageNumber))
-        {
-            return "";
-        }
-
-        return prefix + (stageNumber + 1);
+        return int.TryParse(numberText, out stageNumber);
     }
 
     private static bool CanLoadScene(string sceneName)

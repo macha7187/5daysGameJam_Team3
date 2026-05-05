@@ -2313,13 +2313,14 @@ MonoBehaviour:
   nextSceneName: 
   autoResolveNextSceneName: 1
   firstNumberedStageSceneName: Stage1
+  clearSceneName: Clear Scene
   nextArrowSprite: {fileID: 0}
   nextArrowAnchoredPosition: {x: -36, y: 0}
   nextArrowSize: {x: 180, y: 120}
   transitionScrollDistance: 12
   transitionScrollDuration: 0.8
   playIncomingScrollTransition: 1
-  transitionBackgroundSprite: {fileID: 0}
+  transitionBackgroundSprite: {fileID: 21300000, guid: a686cbcca8363dd47a89adf6e3ec6b92, type: 3}
   transitionBackgroundColor: {r: 1, g: 1, b: 1, a: 1}
   transitionBackgroundSortingOrder: -100
   incomingTransitionBackgroundSortingOrder: -100
@@ -4238,7 +4239,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7262003996523112385, guid: e2d4947f108dd934bb12fb827393665b, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 4
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 7262003996523112385, guid: e2d4947f108dd934bb12fb827393665b, type: 3}
       propertyPath: m_LocalPosition.z
