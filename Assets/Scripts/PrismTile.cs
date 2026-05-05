@@ -6,7 +6,7 @@ public class PrismTile : GridPiece
 {
     [Header("Initial Settings")]
     [FormerlySerializedAs("direction")]
-    [SerializeField] private PuzzleDirection initialDirection = PuzzleDirection.Right;
+    [SerializeField] private PuzzleDirection initialDirection = PuzzleDirection.Up;
 
     private PuzzleDirection currentDirection;
 
@@ -61,11 +61,13 @@ public class PrismTile : GridPiece
         switch (currentDirection)
         {
             case PuzzleDirection.Up:
-                return 90f;
-            case PuzzleDirection.Down:
+                return 0f;
+            case PuzzleDirection.Right:
                 return -90f;
+            case PuzzleDirection.Down:
+                return -180f;
             case PuzzleDirection.Left:
-                return 180f;
+                return -270f;
             default:
                 return 0f;
         }
