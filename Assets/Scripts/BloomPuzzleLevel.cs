@@ -221,37 +221,40 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         waterCells.Clear();
         waterDistances.Clear();
-        Queue<FlowNode> frontier = new Queue<FlowNode>();
-
         foreach (WaterSourceTile source in FindObjectsOfType<WaterSourceTile>())
         {
+            Queue<FlowNode> frontier = new Queue<FlowNode>();
+            HashSet<Vector2Int> sourceWaterCells = new HashSet<Vector2Int>();
+
             RecordWater(source.GridPosition, source.WaterKind);
             waterDistances[source.GridPosition] = 0;
+            sourceWaterCells.Add(source.GridPosition);
             frontier.Enqueue(new FlowNode(source.GridPosition, source.WaterKind, 0));
-        }
 
-        while (frontier.Count > 0)
-        {
-            FlowNode current = frontier.Dequeue();
-
-            foreach (Vector2Int direction in CardinalDirections)
+            while (frontier.Count > 0)
             {
-                Vector2Int next = current.Position + direction;
-                if (waterCells.Count >= maxWaterCells)
-                {
-                    frontier.Clear();
-                    break;
-                }
+                FlowNode current = frontier.Dequeue();
 
-                if (!IsInsideBounds(next) || waterCells.ContainsKey(next) || BlocksWater(next))
+                foreach (Vector2Int direction in CardinalDirections)
                 {
-                    continue;
-                }
+                    if (sourceWaterCells.Count >= maxWaterCells)
+                    {
+                        frontier.Clear();
+                        break;
+                    }
 
-                int nextDistance = current.Distance + 1;
-                RecordWater(next, current.WaterKind);
-                waterDistances[next] = nextDistance;
-                frontier.Enqueue(new FlowNode(next, current.WaterKind, nextDistance));
+                    Vector2Int next = current.Position + direction;
+                    if (!IsInsideBounds(next) || sourceWaterCells.Contains(next) || BlocksWater(next))
+                    {
+                        continue;
+                    }
+
+                    int nextDistance = current.Distance + 1;
+                    sourceWaterCells.Add(next);
+                    RecordWater(next, current.WaterKind);
+                    RecordNearestDistance(waterDistances, next, nextDistance);
+                    frontier.Enqueue(new FlowNode(next, current.WaterKind, nextDistance));
+                }
             }
         }
 
@@ -341,6 +344,11 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RecordWater(Vector2Int position, WaterKind waterKind)
     {
+        if (waterCells.TryGetValue(position, out WaterKind currentKind) && currentKind == WaterKind.Muddy)
+        {
+            return;
+        }
+
         waterCells[position] = waterKind;
     }
 
