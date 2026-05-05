@@ -50,6 +50,14 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private float transitionScrollDistance = 12f;
     [SerializeField] private float transitionScrollDuration = 0.8f;
     [SerializeField] private bool playIncomingScrollTransition = true;
+    [SerializeField] private Sprite transitionBackgroundSprite;
+    [SerializeField] private Color transitionBackgroundColor = Color.white;
+    [SerializeField] private int transitionBackgroundSortingOrder = -100;
+    [SerializeField] private int incomingTransitionBackgroundSortingOrder = -100;
+    [SerializeField] private bool stretchTransitionBackgroundToScrollPath = false;
+    [SerializeField] private float transitionBackgroundOverlap = 1f;
+    [SerializeField] private float transitionBackgroundScalePadding = 1.08f;
+    [SerializeField] private float transitionBackgroundFadeDuration = 0.12f;
     [SerializeField] private Color nextArrowColor = new Color(0.62f, 0.55f, 0.82f, 1f);
 
     private readonly HashSet<Vector2Int> litCells = new HashSet<Vector2Int>();
@@ -60,6 +68,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     private Transform flowVisualRoot;
     private TextMesh clearTextMesh;
     private Button nextArrowButton;
+    private GameObject transitionBackgroundRoot;
+    private readonly List<SpriteRenderer> transitionBackgroundRenderers = new List<SpriteRenderer>();
     private bool isTransitioning;
     private bool wasCleared;
 
@@ -822,6 +832,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         Vector3 start = mainCamera.transform.position;
         Vector3 end = start + Vector3.right * transitionScrollDistance;
+        EnsureTransitionBackground(mainCamera, start, end, transitionBackgroundSortingOrder);
+        SetTransitionBackgroundAlpha(1f);
         float duration = Mathf.Max(0.01f, transitionScrollDuration);
         float elapsed = 0f;
 
@@ -861,6 +873,8 @@ public class BloomPuzzleLevel : MonoBehaviour
         isTransitioning = true;
         Vector3 end = mainCamera.transform.position;
         Vector3 start = end - Vector3.right * transitionScrollDistance;
+        EnsureTransitionBackground(mainCamera, start, end, incomingTransitionBackgroundSortingOrder);
+        SetTransitionBackgroundAlpha(1f);
         float duration = Mathf.Max(0.01f, transitionScrollDuration);
         float elapsed = 0f;
 
@@ -874,7 +888,121 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         mainCamera.transform.position = end;
+        yield return FadeTransitionBackground(1f, 0f);
+        ClearTransitionBackground();
         isTransitioning = false;
+    }
+
+    private void EnsureTransitionBackground(Camera targetCamera, Vector3 fromPosition, Vector3 toPosition, int sortingOrder)
+    {
+        ClearTransitionBackground();
+        transitionBackgroundRenderers.Clear();
+
+        if (transitionBackgroundSprite == null || targetCamera == null || !targetCamera.orthographic)
+        {
+            return;
+        }
+
+        Bounds spriteBounds = transitionBackgroundSprite.bounds;
+        if (spriteBounds.size.x <= 0f || spriteBounds.size.y <= 0f)
+        {
+            return;
+        }
+
+        float viewHeight = targetCamera.orthographicSize * 2f;
+        float viewWidth = viewHeight * targetCamera.aspect;
+        float spriteScale = (viewHeight / spriteBounds.size.y) * Mathf.Max(1f, transitionBackgroundScalePadding);
+        float tileWidth = spriteBounds.size.x * spriteScale;
+        float minX = Mathf.Min(fromPosition.x, toPosition.x) - viewWidth * 0.5f - tileWidth;
+        float maxX = Mathf.Max(fromPosition.x, toPosition.x) + viewWidth * 0.5f + tileWidth;
+        float centerY = (fromPosition.y + toPosition.y) * 0.5f;
+        float z = Mathf.Max(fromPosition.z, toPosition.z) + Mathf.Abs(targetCamera.transform.position.z);
+
+        transitionBackgroundRoot = new GameObject("Transition Background");
+
+        if (stretchTransitionBackgroundToScrollPath)
+        {
+            GameObject tile = CreateTransitionBackgroundTile("Transition Background Stretch", new Vector3((minX + maxX) * 0.5f, centerY, z), sortingOrder);
+            tile.transform.localScale = new Vector3((maxX - minX) / spriteBounds.size.x, viewHeight / spriteBounds.size.y, 1f);
+            return;
+        }
+
+        float step = Mathf.Max(0.01f, tileWidth - Mathf.Max(0f, transitionBackgroundOverlap));
+
+        int tileCount = Mathf.CeilToInt((maxX - minX) / step) + 1;
+        for (int i = 0; i < tileCount; i++)
+        {
+            GameObject tile = CreateTransitionBackgroundTile("Transition Background Tile", new Vector3(minX + tileWidth * 0.5f + step * i, centerY, z), sortingOrder);
+            tile.transform.localScale = Vector3.one * spriteScale;
+        }
+    }
+
+    private GameObject CreateTransitionBackgroundTile(string tileName, Vector3 position, int sortingOrder)
+    {
+        GameObject tile = new GameObject(tileName);
+        tile.transform.SetParent(transitionBackgroundRoot.transform);
+        tile.transform.position = position;
+
+        SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
+        renderer.sprite = transitionBackgroundSprite;
+        renderer.color = transitionBackgroundColor;
+        renderer.sortingOrder = sortingOrder;
+        transitionBackgroundRenderers.Add(renderer);
+        return tile;
+    }
+
+    private IEnumerator FadeTransitionBackground(float fromAlpha, float toAlpha)
+    {
+        if (transitionBackgroundRoot == null || transitionBackgroundRenderers.Count == 0)
+        {
+            yield break;
+        }
+
+        float duration = Mathf.Max(0f, transitionBackgroundFadeDuration);
+        if (duration <= 0f)
+        {
+            SetTransitionBackgroundAlpha(toAlpha);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            SetTransitionBackgroundAlpha(Mathf.Lerp(fromAlpha, toAlpha, t));
+            yield return null;
+        }
+
+        SetTransitionBackgroundAlpha(toAlpha);
+    }
+
+    private void SetTransitionBackgroundAlpha(float alpha)
+    {
+        float clampedAlpha = Mathf.Clamp01(alpha);
+        foreach (SpriteRenderer renderer in transitionBackgroundRenderers)
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Color color = transitionBackgroundColor;
+            color.a *= clampedAlpha;
+            renderer.color = color;
+        }
+    }
+
+    private void ClearTransitionBackground()
+    {
+        if (transitionBackgroundRoot == null)
+        {
+            return;
+        }
+
+        Destroy(transitionBackgroundRoot);
+        transitionBackgroundRoot = null;
+        transitionBackgroundRenderers.Clear();
     }
 
     private static void QueueIncomingScrollTransition(string sceneName)

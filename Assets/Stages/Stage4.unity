@@ -567,6 +567,14 @@ MonoBehaviour:
   transitionScrollDistance: 12
   transitionScrollDuration: 0.8
   playIncomingScrollTransition: 1
+  transitionBackgroundSprite: {fileID: 21300000, guid: a686cbcca8363dd47a89adf6e3ec6b92, type: 3}
+  transitionBackgroundColor: {r: 1, g: 1, b: 1, a: 1}
+  transitionBackgroundSortingOrder: -100
+  incomingTransitionBackgroundSortingOrder: -100
+  stretchTransitionBackgroundToScrollPath: 0
+  transitionBackgroundOverlap: 1
+  transitionBackgroundScalePadding: 1.08
+  transitionBackgroundFadeDuration: 0.12
   nextArrowColor: {r: 0.62, g: 0.55, b: 0.82, a: 1}
 --- !u!4 &142247058
 Transform:
