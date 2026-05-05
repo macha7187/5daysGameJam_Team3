@@ -99,6 +99,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dormantSprite: {fileID: 21300000, guid: 0ce4b4100d1c1ab4a9088b523567100b, type: 3}
   bloomingSprite: {fileID: 21300000, guid: 38a7e932d33c0b84bbc8c4105596a28e, type: 3}
+  flowerKind: 1
   lightRequirement: 1
   waterRequirement: 0
   failsWhenAdjacentMuddyWater: 0

@@ -3,6 +3,14 @@ using UnityEngine;
 [AddComponentMenu("Bloom Rock Puzzle/Flower Tile")]
 public class FlowerTile : GridPiece
 {
+    public enum FlowerKind
+    {
+        Normal,
+        Hydrangea,
+        Lotus,
+        Other
+    }
+
     private enum LightRequirement
     {
         Required,
@@ -21,6 +29,9 @@ public class FlowerTile : GridPiece
     [SerializeField] private Sprite dormantSprite;
     [SerializeField] private Sprite bloomingSprite;
 
+    [Header("Type")]
+    [SerializeField] private FlowerKind flowerKind = FlowerKind.Normal;
+
     [Header("Bloom Conditions")]
     [SerializeField] private LightRequirement lightRequirement = LightRequirement.Required;
     [SerializeField] private WaterRequirement waterRequirement = WaterRequirement.CleanOnly;
@@ -36,6 +47,7 @@ public class FlowerTile : GridPiece
     public bool HasAdjacentCleanWater { get; private set; }
     public bool HasAdjacentMuddyWater { get; private set; }
     public bool IsBlooming { get; private set; }
+    public FlowerKind Kind => flowerKind;
 
     private Renderer cachedRenderer;
     private SpriteRenderer cachedSpriteRenderer;
