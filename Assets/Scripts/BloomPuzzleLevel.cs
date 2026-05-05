@@ -72,6 +72,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     private readonly List<SpriteRenderer> transitionBackgroundRenderers = new List<SpriteRenderer>();
     private bool isTransitioning;
     private bool wasCleared;
+    private bool hasBuiltWaterOnce;
 
     private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
 
@@ -216,6 +217,8 @@ public class BloomPuzzleLevel : MonoBehaviour
 
     private void RebuildWater()
     {
+        Dictionary<Vector2Int, WaterKind> previousWaterCells = new Dictionary<Vector2Int, WaterKind>(waterCells);
+
         waterCells.Clear();
         waterDistances.Clear();
         Queue<FlowNode> frontier = new Queue<FlowNode>();
@@ -236,7 +239,8 @@ public class BloomPuzzleLevel : MonoBehaviour
                 Vector2Int next = current.Position + direction;
                 if (waterCells.Count >= maxWaterCells)
                 {
-                    return;
+                    frontier.Clear();
+                    break;
                 }
 
                 if (!IsInsideBounds(next) || waterCells.ContainsKey(next) || BlocksWater(next))
@@ -250,6 +254,40 @@ public class BloomPuzzleLevel : MonoBehaviour
                 frontier.Enqueue(new FlowNode(next, current.WaterKind, nextDistance));
             }
         }
+
+        PlayWaterChangeIfNeeded(previousWaterCells);
+    }
+
+    private void PlayWaterChangeIfNeeded(Dictionary<Vector2Int, WaterKind> previousWaterCells)
+    {
+        if (!hasBuiltWaterOnce)
+        {
+            hasBuiltWaterOnce = true;
+            return;
+        }
+
+        if (!AreWaterCellsEqual(previousWaterCells, waterCells))
+        {
+            SeManager.PlayWaterChange();
+        }
+    }
+
+    private static bool AreWaterCellsEqual(Dictionary<Vector2Int, WaterKind> first, Dictionary<Vector2Int, WaterKind> second)
+    {
+        if (first.Count != second.Count)
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<Vector2Int, WaterKind> waterCell in first)
+        {
+            if (!second.TryGetValue(waterCell.Key, out WaterKind foundKind) || foundKind != waterCell.Value)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void RefreshFlowers()
@@ -741,6 +779,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         nextArrowButton = buttonObject.AddComponent<Button>();
         nextArrowButton.targetGraphic = image;
+        nextArrowButton.onClick.AddListener(SeManager.PlayButtonClick);
         nextArrowButton.onClick.AddListener(LoadConfiguredNextSceneWithScroll);
 
         nextArrowButton.gameObject.SetActive(false);
