@@ -1089,10 +1089,10 @@ MonoBehaviour:
   flowVisualSize: 0.82
   flowVisualZ: 0.2
   minimumFlowAlpha: 0.12
-  lightVisualColor: {r: 1, g: 0.92, b: 0.1, a: 0.45}
-  waterVisualColor: {r: 0.15, g: 0.55, b: 1, a: 0.38}
-  muddyWaterVisualColor: {r: 0.45, g: 0.28, b: 0.12, a: 0.7}
-  mixedVisualColor: {r: 0.25, g: 1, b: 0.45, a: 0.45}
+  lightVisualColor: {r: 1, g: 0.97410464, b: 0.827044, a: 0}
+  waterVisualColor: {r: 0.5251572, g: 0.74773973, b: 1, a: 0.5568628}
+  muddyWaterVisualColor: {r: 1, g: 0.892932, b: 0.79559743, a: 0.7}
+  mixedVisualColor: {r: 0.7012578, g: 1, b: 0.78102666, a: 0}
   waterFlowSprite: {fileID: 21300000, guid: 5b3aa308b0e79ee4da560ce0c0f90c35, type: 3}
   muddyWaterFlowSprite: {fileID: 21300000, guid: 6a70a5ce726bb5247bc9a34b87ea35dd, type: 3}
   liquidBodySprite: {fileID: 0}
@@ -1106,19 +1106,20 @@ MonoBehaviour:
   additiveLightStrength: 1.35
   waterSpriteFadePerCell: 0.18
   lightSpriteFadePerCell: 0.05
-  liquidBodyAlphaMultiplier: 0.72
-  liquidBodySize: 0.88
-  liquidConnectorWidth: 0.52
-  liquidConnectorLength: 1.08
-  waterStreamWidth: 0.28
+  liquidBodyAlphaMultiplier: 0.9
+  liquidBodySize: 1
+  liquidConnectorWidth: 0.78
+  liquidConnectorLength: 1.16
+  liquidSurfaceFlowAlphaMultiplier: 0.46
+  waterStreamWidth: 0.55
   waterStreamLength: 0.88
-  muddyWaterVisualSize: 0.52
-  lightBeamWidth: 0.24
+  muddyWaterVisualSize: 0.85
+  lightBeamWidth: 0.56
   waterMotionDistance: 0.28
   waterMotionSpeed: 1.8
   muddyWaterMotionSpeed: 0.75
   lightPulseSpeed: 2.4
-  lightBeamLength: 0.92
+  lightBeamLength: 1.5
   showClearText: 0
   clearText: CLEAR!
   clearTextPosition: {x: 0, y: 3, z: -0.5}
