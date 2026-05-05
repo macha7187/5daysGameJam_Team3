@@ -635,6 +635,14 @@ PrefabInstance:
       value: "\u30A2\u30B8\u30B5\u30A4"
       objectReference: {fileID: 0}
     - target: {fileID: 8635651076427236926, guid: b39a5f8df58b4a448a639a58465c9a86, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8635651076427236926, guid: b39a5f8df58b4a448a639a58465c9a86, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8635651076427236926, guid: b39a5f8df58b4a448a639a58465c9a86, type: 3}
       propertyPath: m_LocalPosition.x
       value: -1.49
       objectReference: {fileID: 0}
