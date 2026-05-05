@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections;
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Events;
@@ -100,6 +101,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     private bool isTransitioning;
     private bool wasCleared;
     private bool hasBuiltWaterOnce;
+    private int bloomingFlowerCount;
+    private int totalFlowerCount;
     private Sprite defaultWaterFlowSprite;
     private Sprite defaultMuddyWaterFlowSprite;
     private Sprite defaultLiquidBodySprite;
@@ -107,6 +110,11 @@ public class BloomPuzzleLevel : MonoBehaviour
     private Material additiveLightMaterial;
 
     private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
+
+    public event Action<int, int> FlowerBloomCountChanged;
+
+    public int BloomingFlowerCount => bloomingFlowerCount;
+    public int TotalFlowerCount => totalFlowerCount;
 
     private static readonly Vector2Int[] CardinalDirections =
     {
@@ -358,6 +366,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         FlowerTile[] flowers = FindObjectsOfType<FlowerTile>();
         bool allBlooming = flowers.Length > 0;
+        int currentBloomingFlowerCount = 0;
 
         foreach (FlowerTile flower in flowers)
         {
@@ -365,8 +374,15 @@ public class BloomPuzzleLevel : MonoBehaviour
             bool hasMuddyWater = waterNeedsAdjacentFlower ? HasAdjacentWater(flower.GridPosition, WaterKind.Muddy) : HasWater(flower.GridPosition, WaterKind.Muddy);
             bool isLit = litCells.Contains(flower.GridPosition);
             flower.SetConditions(isLit, hasCleanWater, hasMuddyWater);
+            if (flower.IsBlooming)
+            {
+                currentBloomingFlowerCount++;
+            }
+
             allBlooming &= flower.IsBlooming;
         }
+
+        SetFlowerBloomCount(currentBloomingFlowerCount, flowers.Length);
 
         if (allBlooming && !wasCleared)
         {
@@ -383,6 +399,18 @@ public class BloomPuzzleLevel : MonoBehaviour
             RefreshClearVisual(false);
             RefreshNextArrow(false);
         }
+    }
+
+    private void SetFlowerBloomCount(int currentBloomingFlowerCount, int currentTotalFlowerCount)
+    {
+        if (bloomingFlowerCount == currentBloomingFlowerCount && totalFlowerCount == currentTotalFlowerCount)
+        {
+            return;
+        }
+
+        bloomingFlowerCount = currentBloomingFlowerCount;
+        totalFlowerCount = currentTotalFlowerCount;
+        FlowerBloomCountChanged?.Invoke(bloomingFlowerCount, totalFlowerCount);
     }
 
     private bool HasAdjacentWater(Vector2Int position, WaterKind waterKind)
@@ -1177,6 +1205,17 @@ public class BloomPuzzleLevel : MonoBehaviour
         nextArrowButton.gameObject.SetActive(isClear && !isTransitioning);
     }
 
+    private static void SetFlowerBloomStatusUiHidden(bool hidden)
+    {
+        foreach (FlowerBloomStatusUI statusUi in FindObjectsOfType<FlowerBloomStatusUI>())
+        {
+            if (statusUi != null)
+            {
+                statusUi.SetTransitionHidden(hidden);
+            }
+        }
+    }
+
     private string ResolveNextSceneName()
     {
         if (!string.IsNullOrEmpty(nextSceneName))
@@ -1353,6 +1392,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         isTransitioning = true;
+        SetFlowerBloomStatusUiHidden(true);
         if (nextArrowButton != null)
         {
             nextArrowButton.gameObject.SetActive(false);
@@ -1407,6 +1447,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         }
 
         isTransitioning = true;
+        SetFlowerBloomStatusUiHidden(true);
         Vector3 end = mainCamera.transform.position;
         Vector3 start = end - Vector3.right * transitionScrollDistance;
         EnsureTransitionBackground(mainCamera, start, end, incomingTransitionBackgroundSortingOrder);
@@ -1426,6 +1467,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         mainCamera.transform.position = end;
         yield return FadeTransitionBackground(1f, 0f);
         ClearTransitionBackground();
+        SetFlowerBloomStatusUiHidden(false);
         isTransitioning = false;
     }
 
