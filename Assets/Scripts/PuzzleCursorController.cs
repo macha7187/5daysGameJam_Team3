@@ -76,7 +76,11 @@ public class PuzzleCursorController : GridPiece
         grabbedRock = level != null ? level.GetRockAt(GridPosition) : null;
         if (grabbedRock == null)
         {
-            level?.TryRotateLightSourceAt(GridPosition);
+            bool rotatedLight = level != null && level.TryRotateLightSourceAt(GridPosition);
+            if (!rotatedLight)
+            {
+                level?.TryRotatePrismAt(GridPosition);
+            }
         }
 
         RefreshVisual();

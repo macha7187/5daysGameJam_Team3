@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-[AddComponentMenu("Bloom Rock Puzzle/Light Source Tile")]
-public class LightSourceTile : GridPiece
+[AddComponentMenu("Bloom Rock Puzzle/Prism Tile")]
+public class PrismTile : GridPiece
 {
     [Header("Initial Settings")]
     [FormerlySerializedAs("direction")]
