@@ -308,6 +308,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         {
             wasCleared = true;
             Debug.Log("Stage clear: all flowers are blooming.");
+            SeManager.PlayClear();
             RefreshClearVisual(true);
             RefreshNextArrow(true);
             onLevelCleared?.Invoke();

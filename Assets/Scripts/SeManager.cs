@@ -8,6 +8,7 @@ public sealed class SeManager : MonoBehaviour
     private const string RockLiftClipPath = "SE/RockLift";
     private const string RockDropClipPath = "SE/RockDrop";
     private const string ButtonClickClipPath = "SE/ButtonClick";
+    private const string ClearClipPath = "SE/Clear";
 
     private static SeManager instance;
 
@@ -16,6 +17,7 @@ public sealed class SeManager : MonoBehaviour
     [SerializeField] private AudioClip rockLiftClip;
     [SerializeField] private AudioClip rockDropClip;
     [SerializeField] private AudioClip buttonClickClip;
+    [SerializeField] private AudioClip clearClip;
 
     [Header("Volume")]
     [SerializeField, Range(0f, 1f)] private float volume = 1f;
@@ -78,6 +80,11 @@ public sealed class SeManager : MonoBehaviour
         Play(instance != null ? instance.buttonClickClip : null);
     }
 
+    public static void PlayClear()
+    {
+        Play(instance != null ? instance.clearClip : null);
+    }
+
     private static void Play(AudioClip clip)
     {
         if (instance == null || clip == null)
@@ -94,5 +101,6 @@ public sealed class SeManager : MonoBehaviour
         rockLiftClip = rockLiftClip != null ? rockLiftClip : Resources.Load<AudioClip>(RockLiftClipPath);
         rockDropClip = rockDropClip != null ? rockDropClip : Resources.Load<AudioClip>(RockDropClipPath);
         buttonClickClip = buttonClickClip != null ? buttonClickClip : Resources.Load<AudioClip>(ButtonClickClipPath);
+        clearClip = clearClip != null ? clearClip : Resources.Load<AudioClip>(ClearClipPath);
     }
 }
