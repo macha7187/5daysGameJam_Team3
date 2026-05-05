@@ -86,6 +86,8 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private float transitionBackgroundFadeDuration = 0.12f;
     [SerializeField] private Color nextArrowColor = new Color(0.62f, 0.55f, 0.82f, 1f);
 
+    private const string TransitionSettingsResourcePath = "BloomPuzzleTransitionSettings";
+
     private readonly HashSet<Vector2Int> litCells = new HashSet<Vector2Int>();
     private readonly Dictionary<Vector2Int, WaterKind> waterCells = new Dictionary<Vector2Int, WaterKind>();
     private readonly Dictionary<Vector2Int, int> lightDistances = new Dictionary<Vector2Int, int>();
@@ -108,6 +110,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     private Sprite defaultLiquidBodySprite;
     private Sprite defaultLightBeamSprite;
     private Material additiveLightMaterial;
+    private static BloomPuzzleTransitionSettings transitionSettings;
 
     private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
 
@@ -1305,12 +1308,12 @@ public class BloomPuzzleLevel : MonoBehaviour
         buttonRect.anchorMin = new Vector2(1f, 0.5f);
         buttonRect.anchorMax = new Vector2(1f, 0.5f);
         buttonRect.pivot = new Vector2(1f, 0.5f);
-        buttonRect.anchoredPosition = nextArrowAnchoredPosition;
-        buttonRect.sizeDelta = nextArrowSize;
+        buttonRect.anchoredPosition = EffectiveNextArrowAnchoredPosition;
+        buttonRect.sizeDelta = EffectiveNextArrowSize;
 
         Image image = buttonObject.AddComponent<Image>();
-        image.sprite = nextArrowSprite != null ? nextArrowSprite : CreateDefaultNextArrowSprite();
-        image.color = nextArrowColor;
+        image.sprite = EffectiveNextArrowSprite != null ? EffectiveNextArrowSprite : CreateDefaultNextArrowSprite();
+        image.color = EffectiveNextArrowColor;
         image.preserveAspect = true;
 
         nextArrowButton = buttonObject.AddComponent<Button>();
@@ -1320,6 +1323,32 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         nextArrowButton.gameObject.SetActive(false);
     }
+
+    private static BloomPuzzleTransitionSettings TransitionSettings
+    {
+        get
+        {
+            if (transitionSettings == null)
+            {
+                transitionSettings = Resources.Load<BloomPuzzleTransitionSettings>(TransitionSettingsResourcePath);
+            }
+
+            return transitionSettings;
+        }
+    }
+
+    private Sprite EffectiveNextArrowSprite
+    {
+        get
+        {
+            BloomPuzzleTransitionSettings settings = TransitionSettings;
+            return settings != null && settings.NextArrowSprite != null ? settings.NextArrowSprite : nextArrowSprite;
+        }
+    }
+
+    private Color EffectiveNextArrowColor => TransitionSettings != null ? TransitionSettings.NextArrowColor : nextArrowColor;
+    private Vector2 EffectiveNextArrowAnchoredPosition => TransitionSettings != null ? TransitionSettings.NextArrowAnchoredPosition : nextArrowAnchoredPosition;
+    private Vector2 EffectiveNextArrowSize => TransitionSettings != null ? TransitionSettings.NextArrowSize : nextArrowSize;
 
     private static Sprite CreateDefaultNextArrowSprite()
     {
