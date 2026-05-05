@@ -47,10 +47,11 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private float liquidBodySize = 0.88f;
     [SerializeField] private float liquidConnectorWidth = 0.52f;
     [SerializeField] private float liquidConnectorLength = 1.08f;
+    [SerializeField] private float liquidSurfaceFlowAlphaMultiplier = 0.58f;
     [SerializeField] private float waterStreamWidth = 0.44f;
     [SerializeField] private float waterStreamLength = 1.02f;
     [SerializeField] private float muddyWaterVisualSize = 0.72f;
-    [SerializeField] private float lightBeamWidth = 0.34f;
+    [SerializeField] private float lightBeamWidth = 0.5f;
     [SerializeField] private float waterMotionDistance = 0.28f;
     [SerializeField] private float waterMotionSpeed = 1.8f;
     [SerializeField] private float muddyWaterMotionSpeed = 0.75f;
@@ -132,6 +133,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         liquidBodySize = Mathf.Max(0.01f, liquidBodySize);
         liquidConnectorWidth = Mathf.Max(0.01f, liquidConnectorWidth);
         liquidConnectorLength = Mathf.Max(0.01f, liquidConnectorLength);
+        liquidSurfaceFlowAlphaMultiplier = Mathf.Max(0f, liquidSurfaceFlowAlphaMultiplier);
         waterStreamWidth = Mathf.Max(0.01f, waterStreamWidth);
         waterStreamLength = Mathf.Max(0.01f, waterStreamLength);
         muddyWaterVisualSize = Mathf.Max(0.01f, muddyWaterVisualSize);
@@ -640,7 +642,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
             bool hasWater = waterCells.ContainsKey(cell);
             bool hasLight = litCells.Contains(cell);
-            flowVisuals.Add(CreateFlowVisual(cell, hasWater, hasLight));
+            flowVisuals.Add(CreateFlowVisual(cell, hasWater, hasLight, GetWaterSourceAt(cell) != null));
         }
     }
 
@@ -672,7 +674,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         flowVisualRoot = root.transform;
     }
 
-    private GameObject CreateFlowVisual(Vector2Int cell, bool hasWater, bool hasLight)
+    private GameObject CreateFlowVisual(Vector2Int cell, bool hasWater, bool hasLight, bool isWaterSource)
     {
         GameObject visual = new GameObject("Flow Visual");
         visual.transform.SetParent(flowVisualRoot);
@@ -685,13 +687,13 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         if (hasWater)
         {
-            CreateWaterVisual(visual.transform, cell, hasLight);
+            CreateWaterVisual(visual.transform, cell, hasLight, isWaterSource);
         }
 
         return visual;
     }
 
-    private void CreateWaterVisual(Transform parent, Vector2Int cell, bool isMixedWithLight)
+    private void CreateWaterVisual(Transform parent, Vector2Int cell, bool isMixedWithLight, bool isWaterSource)
     {
         WaterKind waterKind = waterCells.TryGetValue(cell, out WaterKind foundKind) ? foundKind : WaterKind.Clean;
         Color color = waterKind == WaterKind.Muddy ? muddyWaterVisualColor : waterVisualColor;
@@ -703,31 +705,73 @@ public class BloomPuzzleLevel : MonoBehaviour
             color.a = alpha;
         }
 
-        Vector2Int direction = waterDirections.TryGetValue(cell, out Vector2Int foundDirection) ? foundDirection : Vector2Int.zero;
         float phase = GetCellPhase(cell);
         float speed = waterKind == WaterKind.Muddy ? muddyWaterMotionSpeed : waterMotionSpeed;
         Sprite sprite = waterKind == WaterKind.Muddy ? GetMuddyWaterSprite() : GetWaterSprite();
         float visualScale = GetFlowVisualScale();
-        float width = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamWidth) * visualScale;
-        float height = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamLength) * visualScale;
 
-        CreateLiquidBodyVisual(parent, cell, waterKind, color, visualScale);
-
-        GameObject water = CreateSpriteVisual("Water Flow", parent, sprite, color, width, height, direction);
-        FlowVisualAnimator animator = water.AddComponent<FlowVisualAnimator>();
-        animator.Configure(water.GetComponent<SpriteRenderer>(), color, (Vector2)direction * waterMotionDistance, speed, waterKind == WaterKind.Muddy ? 0.04f : 0.08f, phase);
+        CreateLiquidBodyVisual(parent, cell, waterKind, color, visualScale, isWaterSource);
+        if (!isWaterSource)
+        {
+            CreateLiquidSurfaceFlowVisuals(parent, cell, waterKind, color, visualScale, sprite, speed, phase);
+        }
     }
 
-    private void CreateLiquidBodyVisual(Transform parent, Vector2Int cell, WaterKind waterKind, Color flowColor, float visualScale)
+    private void CreateLiquidBodyVisual(Transform parent, Vector2Int cell, WaterKind waterKind, Color flowColor, float visualScale, bool isWaterSource)
     {
         Color bodyColor = flowColor;
         bodyColor.a = Mathf.Clamp01(flowColor.a * liquidBodyAlphaMultiplier);
 
-        float bodySize = liquidBodySize * visualScale;
-        GameObject body = CreateSpriteVisual("Liquid Body", parent, GetLiquidBodySprite(), bodyColor, bodySize, bodySize, Vector2Int.zero);
-        SpriteRenderer bodyRenderer = body.GetComponent<SpriteRenderer>();
-        bodyRenderer.sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+        if (!isWaterSource)
+        {
+            float bodySize = liquidBodySize * visualScale;
+            GameObject body = CreateSpriteVisual("Liquid Body", parent, GetLiquidBodySprite(), bodyColor, bodySize, bodySize, Vector2Int.zero);
+            SpriteRenderer bodyRenderer = body.GetComponent<SpriteRenderer>();
+            bodyRenderer.sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+        }
 
+        foreach (Vector2Int direction in CardinalDirections)
+        {
+            Vector2Int neighbor = cell + direction;
+            if (waterCells.TryGetValue(neighbor, out WaterKind neighborKind) && neighborKind == waterKind)
+            {
+                if (direction == Vector2Int.left || direction == Vector2Int.down)
+                {
+                    continue;
+                }
+
+                bool neighborIsWaterSource = GetWaterSourceAt(neighbor) != null;
+                float connectorLength = liquidConnectorLength * visualScale;
+                float connectorOffset = 0.5f;
+                if (isWaterSource || neighborIsWaterSource)
+                {
+                    connectorLength *= 0.68f;
+                    connectorOffset = isWaterSource ? 0.68f : 0.32f;
+                }
+
+                CreateLiquidConnector(parent, bodyColor, visualScale, direction, connectorLength, connectorOffset);
+                continue;
+            }
+
+            if (GetFlowerAt(neighbor) != null)
+            {
+                float connectorLength = liquidConnectorLength * visualScale * 0.64f;
+                float connectorOffset = isWaterSource ? 0.66f : 0.36f;
+                CreateLiquidConnector(parent, bodyColor, visualScale, direction, connectorLength, connectorOffset);
+            }
+        }
+    }
+
+    private void CreateLiquidConnector(Transform parent, Color bodyColor, float visualScale, Vector2Int direction, float connectorLength, float connectorOffset)
+    {
+        GameObject connector = CreateSpriteVisual("Liquid Connector", parent, GetLiquidBodySprite(), bodyColor, liquidConnectorWidth * visualScale, connectorLength, direction);
+        connector.transform.localPosition = (Vector3)((Vector2)direction * connectorOffset);
+        connector.GetComponent<SpriteRenderer>().sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+    }
+
+    private void CreateLiquidSurfaceFlowVisuals(Transform parent, Vector2Int cell, WaterKind waterKind, Color flowColor, float visualScale, Sprite sprite, float speed, float phase)
+    {
+        bool hasConnection = false;
         foreach (Vector2Int direction in CardinalDirections)
         {
             Vector2Int neighbor = cell + direction;
@@ -741,10 +785,64 @@ public class BloomPuzzleLevel : MonoBehaviour
                 continue;
             }
 
-            GameObject connector = CreateSpriteVisual("Liquid Connector", parent, GetLiquidBodySprite(), bodyColor, liquidConnectorWidth * visualScale, liquidConnectorLength * visualScale, direction);
-            connector.transform.localPosition = (Vector3)((Vector2)direction * 0.5f);
-            connector.GetComponent<SpriteRenderer>().sortingOrder = flowVisualSortingOrder + liquidBodySortingOffset;
+            hasConnection = true;
+            CreateLiquidSurfaceFlowSegment(parent, sprite, flowColor, visualScale, waterKind, direction, speed, phase, GetWaterSourceAt(neighbor) != null);
         }
+
+        foreach (Vector2Int direction in CardinalDirections)
+        {
+            if (GetFlowerAt(cell + direction) == null)
+            {
+                continue;
+            }
+
+            hasConnection = true;
+            CreateLiquidSurfaceFlowSegment(parent, sprite, flowColor, visualScale, waterKind, direction, speed, phase, true);
+        }
+
+        if (!hasConnection && CountSameLiquidNeighbors(cell, waterKind) == 0)
+        {
+            CreateLiquidSurfaceFlowSegment(parent, sprite, flowColor, visualScale, waterKind, Vector2Int.zero, speed, phase, false);
+        }
+    }
+
+    private void CreateLiquidSurfaceFlowSegment(Transform parent, Sprite sprite, Color flowColor, float visualScale, WaterKind waterKind, Vector2Int direction, float speed, float phase, bool endsAtWaterSource)
+    {
+        Color surfaceColor = flowColor;
+        surfaceColor.a = Mathf.Clamp01(flowColor.a * liquidSurfaceFlowAlphaMultiplier);
+
+        float width = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize * 0.72f : waterStreamWidth) * visualScale;
+        float height = waterStreamLength * visualScale;
+        float offset = 0.5f;
+        if (direction == Vector2Int.zero)
+        {
+            width = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamWidth) * visualScale;
+            height = (waterKind == WaterKind.Muddy ? muddyWaterVisualSize : waterStreamLength) * visualScale;
+        }
+        else if (endsAtWaterSource)
+        {
+            height *= 0.68f;
+            offset = 0.32f;
+        }
+
+        GameObject surface = CreateSpriteVisual("Liquid Surface Flow", parent, sprite, surfaceColor, width, height, direction);
+        surface.transform.localPosition = (Vector3)((Vector2)direction * offset);
+        FlowVisualAnimator animator = surface.AddComponent<FlowVisualAnimator>();
+        animator.Configure(surface.GetComponent<SpriteRenderer>(), surfaceColor, (Vector2)direction * waterMotionDistance, speed, 0.05f, phase);
+    }
+
+    private int CountSameLiquidNeighbors(Vector2Int cell, WaterKind waterKind)
+    {
+        int count = 0;
+        foreach (Vector2Int direction in CardinalDirections)
+        {
+            if (waterCells.TryGetValue(cell + direction, out WaterKind neighborKind) && neighborKind == waterKind)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private void CreateLightVisual(Transform parent, Vector2Int cell, bool isMixedWithWater)
