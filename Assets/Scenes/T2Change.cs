@@ -5,6 +5,7 @@ public class T2Change : MonoBehaviour
 {
     public void ChangeScene()
     {
+        SeManager.PlayButtonClick();
         SceneManager.LoadScene("T2");
     }
 
