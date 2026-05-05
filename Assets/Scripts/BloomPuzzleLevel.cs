@@ -81,7 +81,7 @@ public class BloomPuzzleLevel : MonoBehaviour
     [SerializeField] private Color transitionBackgroundColor = Color.white;
     [SerializeField] private int transitionBackgroundSortingOrder = -100;
     [SerializeField] private int incomingTransitionBackgroundSortingOrder = -100;
-    [SerializeField] private bool stretchTransitionBackgroundToScrollPath = false;
+    [SerializeField] private bool stretchTransitionBackgroundToScrollPath = true;
     [SerializeField] private float transitionBackgroundOverlap = 1f;
     [SerializeField] private float transitionBackgroundScalePadding = 1.08f;
     [SerializeField] private float transitionBackgroundFadeDuration = 0.12f;
@@ -114,6 +114,9 @@ public class BloomPuzzleLevel : MonoBehaviour
     private static BloomPuzzleTransitionSettings transitionSettings;
 
     private const string IncomingTransitionSceneKey = "BloomPuzzleLevel.IncomingTransitionScene";
+    private const string IncomingTransitionBackgroundOffsetXKey = "BloomPuzzleLevel.IncomingTransitionBackgroundOffsetX";
+    private const string IncomingTransitionBackgroundOffsetYKey = "BloomPuzzleLevel.IncomingTransitionBackgroundOffsetY";
+    private const string IncomingTransitionBackgroundScaleKey = "BloomPuzzleLevel.IncomingTransitionBackgroundScale";
 
     public event Action<int, int> FlowerBloomCountChanged;
 
@@ -1476,7 +1479,7 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         Vector3 start = mainCamera.transform.position;
         Vector3 end = start + Vector3.right * transitionScrollDistance;
-        EnsureTransitionBackground(mainCamera, start, end, transitionBackgroundSortingOrder);
+        EnsureTransitionBackground(mainCamera, start, end, transitionBackgroundSortingOrder, TransitionBackgroundPlacement.Outgoing);
         SetTransitionBackgroundAlpha(1f);
         float duration = Mathf.Max(0.01f, transitionScrollDuration);
         float elapsed = 0f;
@@ -1489,7 +1492,7 @@ public class BloomPuzzleLevel : MonoBehaviour
             yield return null;
         }
 
-        QueueIncomingScrollTransition(sceneName);
+        QueueIncomingScrollTransition(sceneName, mainCamera);
         SceneManager.LoadScene(sceneName);
     }
 
@@ -1518,7 +1521,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         SetFlowerBloomStatusUiHidden(true);
         Vector3 end = mainCamera.transform.position;
         Vector3 start = end - Vector3.right * transitionScrollDistance;
-        EnsureTransitionBackground(mainCamera, start, end, incomingTransitionBackgroundSortingOrder);
+        EnsureTransitionBackground(mainCamera, start, end, incomingTransitionBackgroundSortingOrder, TransitionBackgroundPlacement.Incoming);
         SetTransitionBackgroundAlpha(1f);
         float duration = Mathf.Max(0.01f, transitionScrollDuration);
         float elapsed = 0f;
@@ -1539,7 +1542,7 @@ public class BloomPuzzleLevel : MonoBehaviour
         isTransitioning = false;
     }
 
-    private void EnsureTransitionBackground(Camera targetCamera, Vector3 fromPosition, Vector3 toPosition, int sortingOrder)
+    private void EnsureTransitionBackground(Camera targetCamera, Vector3 fromPosition, Vector3 toPosition, int sortingOrder, TransitionBackgroundPlacement placement)
     {
         ClearTransitionBackground();
         transitionBackgroundRenderers.Clear();
@@ -1568,8 +1571,21 @@ public class BloomPuzzleLevel : MonoBehaviour
 
         if (stretchTransitionBackgroundToScrollPath)
         {
-            GameObject tile = CreateTransitionBackgroundTile("Transition Background Stretch", new Vector3((minX + maxX) * 0.5f, centerY, z), sortingOrder);
-            tile.transform.localScale = new Vector3((maxX - minX) / spriteBounds.size.x, viewHeight / spriteBounds.size.y, 1f);
+            float edgePadding = Mathf.Max(0f, transitionBackgroundOverlap);
+            float requiredWidth = Mathf.Abs(toPosition.x - fromPosition.x) + viewWidth + edgePadding;
+            float coverScale = Mathf.Max(spriteScale, requiredWidth / spriteBounds.size.x);
+            float centerX = (Mathf.Min(fromPosition.x, toPosition.x) + Mathf.Max(fromPosition.x, toPosition.x)) * 0.5f;
+            float scale = coverScale;
+
+            if (placement == TransitionBackgroundPlacement.Incoming && TryGetQueuedTransitionBackground(targetCamera.transform.position, out Vector3 queuedPosition, out float queuedScale))
+            {
+                centerX = queuedPosition.x;
+                centerY = queuedPosition.y;
+                scale = queuedScale;
+            }
+
+            GameObject tile = CreateTransitionBackgroundTile("Transition Background Cover", new Vector3(centerX, centerY, z), sortingOrder);
+            tile.transform.localScale = Vector3.one * scale;
             return;
         }
 
@@ -1651,10 +1667,61 @@ public class BloomPuzzleLevel : MonoBehaviour
         transitionBackgroundRenderers.Clear();
     }
 
+    private enum TransitionBackgroundPlacement
+    {
+        Outgoing,
+        Incoming
+    }
+
     private static void QueueIncomingScrollTransition(string sceneName)
     {
         PlayerPrefs.SetString(IncomingTransitionSceneKey, sceneName);
         PlayerPrefs.Save();
+    }
+
+    private void QueueIncomingScrollTransition(string sceneName, Camera targetCamera)
+    {
+        QueueIncomingScrollTransition(sceneName);
+
+        if (targetCamera == null || transitionBackgroundRenderers.Count == 0 || transitionBackgroundRenderers[0] == null)
+        {
+            ClearQueuedTransitionBackground();
+            return;
+        }
+
+        Transform backgroundTransform = transitionBackgroundRenderers[0].transform;
+        Vector3 cameraPosition = targetCamera.transform.position;
+        PlayerPrefs.SetFloat(IncomingTransitionBackgroundOffsetXKey, backgroundTransform.position.x - cameraPosition.x);
+        PlayerPrefs.SetFloat(IncomingTransitionBackgroundOffsetYKey, backgroundTransform.position.y - cameraPosition.y);
+        PlayerPrefs.SetFloat(IncomingTransitionBackgroundScaleKey, backgroundTransform.localScale.x);
+        PlayerPrefs.Save();
+    }
+
+    private static bool TryGetQueuedTransitionBackground(Vector3 cameraPosition, out Vector3 position, out float scale)
+    {
+        if (!PlayerPrefs.HasKey(IncomingTransitionBackgroundOffsetXKey)
+            || !PlayerPrefs.HasKey(IncomingTransitionBackgroundOffsetYKey)
+            || !PlayerPrefs.HasKey(IncomingTransitionBackgroundScaleKey))
+        {
+            position = Vector3.zero;
+            scale = 1f;
+            return false;
+        }
+
+        position = new Vector3(
+            cameraPosition.x + PlayerPrefs.GetFloat(IncomingTransitionBackgroundOffsetXKey),
+            cameraPosition.y + PlayerPrefs.GetFloat(IncomingTransitionBackgroundOffsetYKey),
+            cameraPosition.z);
+        scale = PlayerPrefs.GetFloat(IncomingTransitionBackgroundScaleKey);
+        ClearQueuedTransitionBackground();
+        return true;
+    }
+
+    private static void ClearQueuedTransitionBackground()
+    {
+        PlayerPrefs.DeleteKey(IncomingTransitionBackgroundOffsetXKey);
+        PlayerPrefs.DeleteKey(IncomingTransitionBackgroundOffsetYKey);
+        PlayerPrefs.DeleteKey(IncomingTransitionBackgroundScaleKey);
     }
 
     private void EnsureClearText()

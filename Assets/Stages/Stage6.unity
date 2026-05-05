@@ -943,7 +943,7 @@ MonoBehaviour:
   transitionBackgroundColor: {r: 1, g: 1, b: 1, a: 1}
   transitionBackgroundSortingOrder: -100
   incomingTransitionBackgroundSortingOrder: -100
-  stretchTransitionBackgroundToScrollPath: 0
+  stretchTransitionBackgroundToScrollPath: 1
   transitionBackgroundOverlap: 1
   transitionBackgroundScalePadding: 1.08
   transitionBackgroundFadeDuration: 0.12
