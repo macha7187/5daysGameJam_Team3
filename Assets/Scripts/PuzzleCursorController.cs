@@ -3,17 +3,23 @@ using UnityEngine;
 [AddComponentMenu("Bloom Rock Puzzle/Puzzle Cursor Controller")]
 public class PuzzleCursorController : GridPiece
 {
+    [Header("Visual Assets")]
+    [SerializeField] private Sprite idleSprite;      
+    [SerializeField] private Sprite grabbingSprite;
+    [Header("Scale Settings")]
+    [SerializeField] private Vector3 idleScale = Vector3.one;          
+    [SerializeField] private Vector3 grabbingScale = new Vector3(1.2f, 1.2f, 1.2f); 
     [SerializeField] private BloomPuzzleLevel level;
     [SerializeField] private Color idleColor = new Color(0.65f, 0.9f, 1f, 0.45f);
     [SerializeField] private Color grabbingColor = new Color(1f, 0.35f, 0.3f, 0.75f);
 
     private PushableRock grabbedRock;
-    private Renderer cachedRenderer;
+    private SpriteRenderer spriteRenderer;
 
     protected override void Awake()
     {
         base.Awake();
-        cachedRenderer = GetComponent<Renderer>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
         RefreshVisual();
     }
 
@@ -120,14 +126,19 @@ public class PuzzleCursorController : GridPiece
 
     private void RefreshVisual()
     {
-        if (cachedRenderer == null)
-        {
-            cachedRenderer = GetComponent<Renderer>();
-        }
+        if (spriteRenderer == null) return;
 
-        if (cachedRenderer != null)
+        if (grabbedRock != null)
         {
-            cachedRenderer.material.color = grabbedRock != null ? grabbingColor : idleColor;
+            spriteRenderer.sprite = grabbingSprite;
+            spriteRenderer.color = grabbingColor;
+            transform.localScale = grabbingScale;
+        }
+        else
+        {
+            spriteRenderer.sprite = idleSprite;
+            spriteRenderer.color = idleColor;
+            transform.localScale = idleScale;
         }
     }
 }
