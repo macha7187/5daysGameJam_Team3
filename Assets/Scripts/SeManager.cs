@@ -9,7 +9,7 @@ public sealed class SeManager : MonoBehaviour
     private const string RockDropClipPath = "SE/RockDrop";
     private const string ButtonClickClipPath = "SE/ButtonClick";
     private const string ClearClipPath = "SE/Clear";
-    private const string GameClearClipPath = "SE/Clear";
+    private const string GameClearClipPath = "SE/GameClear";
 
     private static SeManager instance;
 
