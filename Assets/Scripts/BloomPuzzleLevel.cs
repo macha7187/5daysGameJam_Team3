@@ -135,6 +135,10 @@ public class BloomPuzzleLevel : MonoBehaviour
     {
         RefreshAll();
         StartCoroutine(PlayIncomingScrollTransitionIfNeeded());
+        if (SceneManager.GetActiveScene().name == clearSceneName)
+        {
+            SeManager.PlayClear(); 
+        }
     }
 
     private void OnValidate()
